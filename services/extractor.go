@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"slices"
 	"sort"
 	"strings"
@@ -15,7 +16,7 @@ import (
 
 // Extract fetches video metadata from YouTube Extract API
 func Extract(videoID string) (*models.ExtractResponse, error) {
-	apiURL := fmt.Sprintf("%s/%s", config.ExtractAPIBase, videoID)
+	apiURL := fmt.Sprintf("%s/%s?proxy=%s", config.ExtractAPIBase, videoID, url.QueryEscape(config.ExtractProxyURL))
 
 	req, err := http.NewRequest("GET", apiURL, nil)
 	if err != nil {
@@ -61,7 +62,7 @@ func SelectVideo(data *models.ExtractResponse, requestedQuality string, osType s
 	// Filter streams by supported codecs
 	var compatibleStreams []models.Stream
 	for _, stream := range data.VideoStreams {
-		codec := extractCodec(stream.MimeType)
+		codec := getStreamCodec(&stream)
 		if isCodecSupported(codec, profile.VideoCodecs) {
 			compatibleStreams = append(compatibleStreams, stream)
 		}
@@ -160,7 +161,7 @@ func SelectAudio(data *models.ExtractResponse, trackID string, osType string) *m
 	// Filter streams by supported codecs
 	var compatibleStreams []models.Stream
 	for _, stream := range data.AudioStreams {
-		codec := extractCodec(stream.MimeType)
+		codec := getStreamCodec(&stream)
 		if isCodecSupported(codec, profile.AudioCodecs) {
 			compatibleStreams = append(compatibleStreams, stream)
 		}
@@ -196,8 +197,8 @@ func SelectAudio(data *models.ExtractResponse, trackID string, osType string) *m
 
 	// Sort by codec priority, then bitrate (higher is better)
 	sort.Slice(compatibleStreams, func(i, j int) bool {
-		codecI := extractCodec(compatibleStreams[i].MimeType)
-		codecJ := extractCodec(compatibleStreams[j].MimeType)
+		codecI := getStreamCodec(&compatibleStreams[i])
+		codecJ := getStreamCodec(&compatibleStreams[j])
 		priorityI := codecPriority(codecI, profile.AudioCodecs)
 		priorityJ := codecPriority(codecJ, profile.AudioCodecs)
 
@@ -212,6 +213,21 @@ func SelectAudio(data *models.ExtractResponse, trackID string, osType string) *m
 	}
 
 	return nil
+}
+
+// getStreamCodec returns the codec from Stream, preferring Codec field over mimeType extraction
+func getStreamCodec(stream *models.Stream) string {
+	// Prefer direct codec field if available
+	if stream.Codec != "" {
+		// Extract base codec: "avc1.4d400c" -> "avc1", "mp4a.40.2" -> "mp4a"
+		codec := stream.Codec
+		if dotIdx := strings.Index(codec, "."); dotIdx != -1 {
+			codec = codec[:dotIdx]
+		}
+		return codec
+	}
+	// Fallback to extracting from mimeType
+	return extractCodec(stream.MimeType)
 }
 
 // extractCodec extracts codec identifier from MIME type
@@ -269,10 +285,10 @@ func NeedsReencode(videoStream *models.Stream, audioStream *models.Stream, targe
 		return false
 	}
 
-	videoCodec := extractCodec(videoStream.MimeType)
+	videoCodec := getStreamCodec(videoStream)
 	audioCodec := ""
 	if audioStream != nil {
-		audioCodec = extractCodec(audioStream.MimeType)
+		audioCodec = getStreamCodec(audioStream)
 	}
 
 	switch targetFormat {

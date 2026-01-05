@@ -161,13 +161,8 @@ func init() {
 		Timeout: ChunkTimeout,
 	}
 
-	// Extract API client
-	extractProxyURL, _ := url.Parse(ExtractProxyURL)
+	// Extract API client (proxy passed as query parameter, not HTTP transport)
 	ExtractClient = &http.Client{
-		Transport: &http.Transport{
-			Proxy:             http.ProxyURL(extractProxyURL),
-			DisableKeepAlives: true,
-		},
 		Timeout: ExtractAPITimeout,
 	}
 }

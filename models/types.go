@@ -92,17 +92,18 @@ type ExtractResponse struct {
 
 // Stream represents a video or audio stream
 type Stream struct {
-	URL          string `json:"url"`
-	MimeType     string `json:"mimeType"`
-	Codec        string `json:"codec,omitempty"`
-	Quality      string `json:"quality,omitempty"`
-	QualityLabel string `json:"qualityLabel,omitempty"`
-	Width        int    `json:"width,omitempty"`
-	Height       int    `json:"height,omitempty"`
-	Bitrate      int    `json:"bitrate,omitempty"`
-	ContentLength int64 `json:"contentLength,omitempty"`
-	AudioTrackID string `json:"audioTrackId,omitempty"`
-	IsOriginal   bool   `json:"isOriginal,omitempty"`
+	URL           string  `json:"url"`
+	MimeType      string  `json:"mimeType"`
+	Codec         string  `json:"codec,omitempty"`
+	Quality       string  `json:"quality,omitempty"`
+	QualityLabel  string  `json:"qualityLabel,omitempty"`
+	Width         int     `json:"width,omitempty"`
+	Height        int     `json:"height,omitempty"`
+	Bitrate       float64 `json:"bitrate,omitempty"`
+	ContentLength int64   `json:"fileSize,omitempty"`
+	AudioTrackID  string  `json:"audioTrackId,omitempty"`
+	IsOriginal    bool    `json:"isOriginal,omitempty"`
+	FPS           int     `json:"fps,omitempty"`
 }
 
 // VideoSelectionResult contains the selected video stream and metadata
