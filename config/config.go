@@ -1,8 +1,10 @@
 package config
 
 import (
+	"context"
+	"crypto/rand"
+	"net"
 	"net/http"
-	"net/url"
 	"time"
 )
 
@@ -20,9 +22,8 @@ const (
 	RetryDelay   = 100 * time.Millisecond
 	ChunkTimeout = 10 * time.Second
 
-	// Proxy
-	DownloadProxyURL = "http://[::1]:6666"
-	ExtractProxyURL  = "http://64.176.170.104:21589"
+	// Proxy (for Extract API)
+	ExtractProxyURL = "http://64.176.170.104:21589"
 
 	// Extract API
 	ExtractAPIBase    = "http://168.119.14.32:8300/api/youtube/video"
@@ -144,23 +145,40 @@ var MimeToExt = map[string]string{
 	"audio/x-wav": "wav",
 }
 
-// HTTP Clients (reuse client, disable keep-alive for random proxy IP)
-var (
-	DownloadClient *http.Client
-	ExtractClient  *http.Client
-)
+// IPv6 rotation config - 2a01:4f8:a0:61c5::/64
+var IPv6Prefix = [8]byte{0x2a, 0x01, 0x04, 0xf8, 0x00, 0xa0, 0x61, 0xc5}
+
+// RandomIPv6 generates a random IPv6 address from the /64 subnet
+func RandomIPv6() net.IP {
+	ip := make([]byte, 16)
+	copy(ip[:8], IPv6Prefix[:])
+	rand.Read(ip[8:]) // Random 64 bits
+	return ip
+}
+
+// NewIPv6Client creates an HTTP client with a random IPv6 source address
+func NewIPv6Client(timeout time.Duration) *http.Client {
+	localAddr := &net.TCPAddr{IP: RandomIPv6()}
+
+	return &http.Client{
+		Transport: &http.Transport{
+			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+				dialer := &net.Dialer{
+					LocalAddr: localAddr,
+					Timeout:   10 * time.Second,
+				}
+				return dialer.DialContext(ctx, "tcp6", addr)
+			},
+			DisableKeepAlives: true,
+		},
+		Timeout: timeout,
+	}
+}
+
+// HTTP Clients
+var ExtractClient *http.Client
 
 func init() {
-	// Download client with rotating proxy
-	downloadProxyURL, _ := url.Parse(DownloadProxyURL)
-	DownloadClient = &http.Client{
-		Transport: &http.Transport{
-			Proxy:             http.ProxyURL(downloadProxyURL),
-			DisableKeepAlives: true, // New connection = new random IP
-		},
-		Timeout: ChunkTimeout,
-	}
-
 	// Extract API client (proxy passed as query parameter, not HTTP transport)
 	ExtractClient = &http.Client{
 		Timeout: ExtractAPITimeout,

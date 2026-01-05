@@ -19,14 +19,8 @@ func FFmpegMerge(jobDir string, format string, bitrate string, videoFile string,
 		"-i", filepath.Join(jobDir, audioFile),
 		"-c:v", "copy",
 		"-c:a", "copy",
+		outputFile,
 	}
-
-	// Add faststart for MP4
-	if format == "mp4" {
-		args = append(args, "-movflags", "+faststart")
-	}
-
-	args = append(args, outputFile)
 
 	if err := runFFmpeg(args); err != nil {
 		return "", fmt.Errorf("merge failed: %w", err)
@@ -115,10 +109,6 @@ func FFmpegTrim(jobDir string, format string, trim *models.TrimConfig, bitrate s
 			args = append(args, "-b:a", bitrate)
 		}
 
-		if format == "mp4" {
-			args = append(args, "-movflags", "+faststart")
-		}
-
 		args = append(args, outputPath)
 	} else {
 		// Fast trim: copy at keyframes
@@ -128,13 +118,8 @@ func FFmpegTrim(jobDir string, format string, trim *models.TrimConfig, bitrate s
 			"-i", inputPath,
 			"-t", fmt.Sprintf("%.3f", duration),
 			"-c", "copy",
+			outputPath,
 		}
-
-		if format == "mp4" {
-			args = append(args, "-movflags", "+faststart")
-		}
-
-		args = append(args, outputPath)
 	}
 
 	if err := runFFmpeg(args); err != nil {
