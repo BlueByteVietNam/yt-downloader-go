@@ -1,0 +1,248 @@
+package services
+
+import (
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"yt-downloader-go/config"
+	"yt-downloader-go/models"
+)
+
+// FFmpegMerge merges video and audio files
+func FFmpegMerge(jobDir string, format string, bitrate string, videoFile string, audioFile string) (string, error) {
+	outputFile := filepath.Join(jobDir, fmt.Sprintf("output.%s", format))
+
+	args := []string{
+		"-y",
+		"-i", filepath.Join(jobDir, videoFile),
+		"-i", filepath.Join(jobDir, audioFile),
+		"-c:v", "copy",
+		"-c:a", "copy",
+	}
+
+	// Add faststart for MP4
+	if format == "mp4" {
+		args = append(args, "-movflags", "+faststart")
+	}
+
+	args = append(args, outputFile)
+
+	if err := runFFmpeg(args); err != nil {
+		return "", fmt.Errorf("merge failed: %w", err)
+	}
+
+	return filepath.Base(outputFile), nil
+}
+
+// FFmpegConvertAudio converts audio to target format
+func FFmpegConvertAudio(jobDir string, format string, bitrate string, audioFile string) (string, error) {
+	inputPath := filepath.Join(jobDir, audioFile)
+	outputFile := filepath.Join(jobDir, fmt.Sprintf("output.%s", format))
+
+	// Determine if we need to encode or can copy
+	inputExt := filepath.Ext(audioFile)
+	canCopy := canCopyAudio(inputExt, format)
+
+	var args []string
+	if canCopy {
+		args = []string{
+			"-y",
+			"-i", inputPath,
+			"-c:a", "copy",
+			outputFile,
+		}
+	} else {
+		codec := config.AudioCodecMap[format]
+		if codec == "" {
+			codec = "aac"
+		}
+
+		args = []string{
+			"-y",
+			"-i", inputPath,
+			"-c:a", codec,
+		}
+
+		// Add bitrate for lossy codecs
+		if bitrate != "" && codec != "pcm_s16le" && codec != "flac" {
+			args = append(args, "-b:a", bitrate)
+		}
+
+		args = append(args, outputFile)
+	}
+
+	if err := runFFmpeg(args); err != nil {
+		return "", fmt.Errorf("audio conversion failed: %w", err)
+	}
+
+	return filepath.Base(outputFile), nil
+}
+
+// FFmpegTrim trims video file
+func FFmpegTrim(jobDir string, format string, trim *models.TrimConfig, bitrate string) (string, error) {
+	if trim.End <= trim.Start {
+		return "", fmt.Errorf("invalid trim range: end (%.2f) must be greater than start (%.2f)", trim.End, trim.Start)
+	}
+
+	inputPath := filepath.Join(jobDir, fmt.Sprintf("output.%s", format))
+	outputPath := filepath.Join(jobDir, fmt.Sprintf("output_trimmed.%s", format))
+
+	duration := trim.End - trim.Start
+
+	var args []string
+	if trim.Accurate {
+		// Accurate trim: re-encode
+		videoCodec := config.VideoCodecMap[format]
+		if videoCodec == "" {
+			videoCodec = "libx264"
+		}
+		audioCodec := config.AudioCodecMap[format]
+		if audioCodec == "" {
+			audioCodec = "aac"
+		}
+
+		args = []string{
+			"-y",
+			"-ss", fmt.Sprintf("%.3f", trim.Start),
+			"-i", inputPath,
+			"-t", fmt.Sprintf("%.3f", duration),
+			"-c:v", videoCodec,
+			"-c:a", audioCodec,
+		}
+
+		if bitrate != "" {
+			args = append(args, "-b:a", bitrate)
+		}
+
+		if format == "mp4" {
+			args = append(args, "-movflags", "+faststart")
+		}
+
+		args = append(args, outputPath)
+	} else {
+		// Fast trim: copy at keyframes
+		args = []string{
+			"-y",
+			"-ss", fmt.Sprintf("%.3f", trim.Start),
+			"-i", inputPath,
+			"-t", fmt.Sprintf("%.3f", duration),
+			"-c", "copy",
+		}
+
+		if format == "mp4" {
+			args = append(args, "-movflags", "+faststart")
+		}
+
+		args = append(args, outputPath)
+	}
+
+	if err := runFFmpeg(args); err != nil {
+		return "", fmt.Errorf("trim failed: %w", err)
+	}
+
+	// Replace original with trimmed (remove first to ensure clean rename on all platforms)
+	_ = os.Remove(inputPath)
+	if err := os.Rename(outputPath, inputPath); err != nil {
+		return "", fmt.Errorf("failed to rename trimmed file: %w", err)
+	}
+
+	return fmt.Sprintf("output.%s", format), nil
+}
+
+// FFmpegTrimAudio trims audio file
+func FFmpegTrimAudio(jobDir string, format string, trim *models.TrimConfig, bitrate string) (string, error) {
+	if trim.End <= trim.Start {
+		return "", fmt.Errorf("invalid trim range: end (%.2f) must be greater than start (%.2f)", trim.End, trim.Start)
+	}
+
+	inputPath := filepath.Join(jobDir, fmt.Sprintf("output.%s", format))
+	outputPath := filepath.Join(jobDir, fmt.Sprintf("output_trimmed.%s", format))
+
+	duration := trim.End - trim.Start
+
+	var args []string
+	if trim.Accurate {
+		// Accurate trim: re-encode
+		codec := config.AudioCodecMap[format]
+		if codec == "" {
+			codec = "aac"
+		}
+
+		args = []string{
+			"-y",
+			"-ss", fmt.Sprintf("%.3f", trim.Start),
+			"-i", inputPath,
+			"-t", fmt.Sprintf("%.3f", duration),
+			"-c:a", codec,
+		}
+
+		if bitrate != "" && codec != "pcm_s16le" && codec != "flac" {
+			args = append(args, "-b:a", bitrate)
+		}
+
+		args = append(args, outputPath)
+	} else {
+		// Fast trim: copy
+		args = []string{
+			"-y",
+			"-ss", fmt.Sprintf("%.3f", trim.Start),
+			"-i", inputPath,
+			"-t", fmt.Sprintf("%.3f", duration),
+			"-c:a", "copy",
+			outputPath,
+		}
+	}
+
+	if err := runFFmpeg(args); err != nil {
+		return "", fmt.Errorf("audio trim failed: %w", err)
+	}
+
+	// Replace original with trimmed (remove first to ensure clean rename on all platforms)
+	_ = os.Remove(inputPath)
+	if err := os.Rename(outputPath, inputPath); err != nil {
+		return "", fmt.Errorf("failed to rename trimmed file: %w", err)
+	}
+
+	return fmt.Sprintf("output.%s", format), nil
+}
+
+// runFFmpeg executes ffmpeg command
+func runFFmpeg(args []string) error {
+	cmd := exec.Command("ffmpeg", args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("ffmpeg error: %w", err)
+	}
+
+	return nil
+}
+
+// canCopyAudio checks if audio can be copied without re-encoding
+func canCopyAudio(inputExt string, outputFormat string) bool {
+	// Remove leading dot
+	if len(inputExt) > 0 && inputExt[0] == '.' {
+		inputExt = inputExt[1:]
+	}
+
+	// Same format: always copy
+	if inputExt == outputFormat {
+		return true
+	}
+
+	// m4a/mp4 are compatible (both use AAC codec typically)
+	if (inputExt == "m4a" || inputExt == "mp4") && (outputFormat == "m4a" || outputFormat == "mp4") {
+		return true
+	}
+
+	// webm to opus: YouTube webm audio typically contains Opus codec
+	// Note: webm can also contain Vorbis, but YouTube primarily uses Opus for audio
+	// If copy fails, FFmpeg will error and user can retry with re-encoding
+	if inputExt == "webm" && outputFormat == "opus" {
+		return true
+	}
+
+	return false
+}
