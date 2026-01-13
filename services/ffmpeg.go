@@ -10,7 +10,7 @@ import (
 )
 
 // FFmpegMerge merges video and audio files
-func FFmpegMerge(jobDir string, format string, bitrate string, videoFile string, audioFile string) (string, error) {
+func FFmpegMerge(jobDir string, format string, videoFile string, audioFile string) (string, error) {
 	outputFile := filepath.Join(jobDir, fmt.Sprintf("output.%s", format))
 
 	args := []string{
@@ -55,6 +55,7 @@ func FFmpegConvertAudio(jobDir string, format string, bitrate string, audioFile 
 		args = []string{
 			"-y",
 			"-i", inputPath,
+			"-threads", "0",
 			"-c:a", codec,
 		}
 
@@ -159,6 +160,7 @@ func FFmpegTrimAudio(jobDir string, format string, trim *models.TrimConfig, bitr
 			"-ss", fmt.Sprintf("%.3f", trim.Start),
 			"-i", inputPath,
 			"-t", fmt.Sprintf("%.3f", duration),
+			"-threads", "0",
 			"-c:a", codec,
 		}
 

@@ -26,7 +26,7 @@ const (
 	ExtractProxyURL = "http://64.176.170.104:21589"
 
 	// Extract API
-	ExtractAPIBase    = "http://168.119.14.32:8300/api/youtube/video"
+	ExtractAPIBase    = "http://168.119.14.32:8200/api/youtube/video"
 	ExtractAPITimeout = 15 * time.Second
 
 	// Cleanup

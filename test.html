@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YT Downloader Test</title>
+  <style>
+    * { box-sizing: border-box; font-family: system-ui, sans-serif; }
+    body { max-width: 600px; margin: 40px auto; padding: 20px; background: #f5f5f5; }
+    h1 { font-size: 1.5rem; margin-bottom: 20px; }
+    .form-group { margin-bottom: 15px; }
+    label { display: block; margin-bottom: 5px; font-weight: 500; }
+    input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
+    .row { display: flex; gap: 10px; }
+    .row > * { flex: 1; }
+    button { width: 100%; padding: 12px; background: #2563eb; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem; }
+    button:hover { background: #1d4ed8; }
+    button:disabled { background: #9ca3af; cursor: not-allowed; }
+    #status { margin-top: 20px; padding: 15px; background: white; border-radius: 4px; display: none; }
+    #status.show { display: block; }
+    .progress { height: 20px; background: #e5e7eb; border-radius: 4px; overflow: hidden; margin: 10px 0; }
+    .progress-bar { height: 100%; background: #22c55e; transition: width 0.3s; }
+    .error { color: #dc2626; }
+    .success { color: #16a34a; }
+    .warning { color: #d97706; font-size: 0.9rem; margin-top: 5px; }
+    a { color: #2563eb; }
+    #trimFields { display: none; }
+    #trimFields.show { display: block; }
+    #qualityGroup { display: none; }
+    #qualityGroup.show { display: block; }
+    .info-box { background: #dbeafe; padding: 10px; border-radius: 4px; margin-bottom: 15px; font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+  <h1>YT Downloader Test</h1>
+
+  <div class="form-group">
+    <label>YouTube URL</label>
+    <input type="text" id="url" placeholder="https://www.youtube.com/watch?v=...">
+  </div>
+
+  <div class="row">
+    <div class="form-group">
+      <label>Platform</label>
+      <select id="platform">
+        <option value="">Auto (Default)</option>
+        <option value="ios">iOS</option>
+        <option value="android">Android</option>
+        <option value="macos">macOS</option>
+        <option value="windows">Windows</option>
+        <option value="linux">Linux</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Type</label>
+      <select id="type">
+        <option value="video">Video</option>
+        <option value="audio">Audio</option>
+      </select>
+    </div>
+  </div>
+
+  <div id="platformInfo" class="info-box" style="display: none;"></div>
+
+  <div class="row">
+    <div class="form-group">
+      <label>Format</label>
+      <select id="format">
+        <option value="mp4">MP4</option>
+        <option value="webm">WebM</option>
+        <option value="mkv">MKV</option>
+      </select>
+    </div>
+    <div class="form-group" id="qualityGroup">
+      <label>Quality</label>
+      <select id="quality">
+        <option value="">Auto (Best)</option>
+        <option value="2160p">2160p (4K)</option>
+        <option value="1440p">1440p</option>
+        <option value="1080p">1080p</option>
+        <option value="720p">720p</option>
+        <option value="480p">480p</option>
+        <option value="360p">360p</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label>Audio Bitrate</label>
+    <select id="bitrate">
+      <option value="192k">192k</option>
+      <option value="128k">128k</option>
+      <option value="320k">320k</option>
+      <option value="64k">64k</option>
+    </select>
+  </div>
+
+  <div class="form-group">
+    <label><input type="checkbox" id="enableTrim"> Enable Trim</label>
+  </div>
+
+  <div id="trimFields">
+    <div class="row">
+      <div class="form-group">
+        <label>Start (seconds)</label>
+        <input type="number" id="trimStart" value="0" min="0">
+      </div>
+      <div class="form-group">
+        <label>End (seconds)</label>
+        <input type="number" id="trimEnd" value="60" min="1">
+      </div>
+    </div>
+  </div>
+
+  <button id="downloadBtn">Download</button>
+
+  <div id="status">
+    <div id="statusText"></div>
+    <div class="progress"><div class="progress-bar" id="progressBar"></div></div>
+    <div id="downloadLink"></div>
+  </div>
+
+  <script>
+    const API = 'https://api.ytconvert.org';
+    let currentJobId = null;
+    let pollInterval = null;
+
+    // Platform info
+    const platformInfo = {
+      ios: 'iOS: Max 1080p (H.264 only), AAC audio',
+      android: 'Android: All qualities, AV1/VP9/H.264, Opus/AAC audio',
+      macos: 'macOS: Max 1080p (H.264 only), AAC audio',
+      windows: 'Windows: All qualities, AV1/VP9/H.264, Opus/AAC audio',
+      linux: 'Linux: All qualities, AV1/VP9/H.264, Opus/AAC audio'
+    };
+
+    // UI elements
+    const platformSelect = document.getElementById('platform');
+    const platformInfoDiv = document.getElementById('platformInfo');
+    const typeSelect = document.getElementById('type');
+    const formatSelect = document.getElementById('format');
+    const qualityGroup = document.getElementById('qualityGroup');
+    const qualitySelect = document.getElementById('quality');
+    const enableTrim = document.getElementById('enableTrim');
+    const trimFields = document.getElementById('trimFields');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const statusDiv = document.getElementById('status');
+    const statusText = document.getElementById('statusText');
+    const progressBar = document.getElementById('progressBar');
+    const downloadLink = document.getElementById('downloadLink');
+
+    // Video formats
+    const videoFormats = ['mp4', 'webm', 'mkv'];
+    const audioFormats = ['mp3', 'm4a', 'wav', 'opus', 'flac'];
+
+    // Update platform info
+    platformSelect.addEventListener('change', () => {
+      const platform = platformSelect.value;
+      if (platform && platformInfo[platform]) {
+        platformInfoDiv.textContent = platformInfo[platform];
+        platformInfoDiv.style.display = 'block';
+      } else {
+        platformInfoDiv.style.display = 'none';
+      }
+    });
+
+    // Update format options based on type
+    typeSelect.addEventListener('change', () => {
+      const isVideo = typeSelect.value === 'video';
+      formatSelect.innerHTML = '';
+
+      const formats = isVideo ? videoFormats : audioFormats;
+      formats.forEach(f => {
+        const opt = document.createElement('option');
+        opt.value = f;
+        opt.textContent = f.toUpperCase();
+        formatSelect.appendChild(opt);
+      });
+
+      qualityGroup.classList.toggle('show', isVideo);
+    });
+
+    // Toggle trim fields
+    enableTrim.addEventListener('change', () => {
+      trimFields.classList.toggle('show', enableTrim.checked);
+    });
+
+    // Init
+    typeSelect.dispatchEvent(new Event('change'));
+
+    // Download handler
+    downloadBtn.addEventListener('click', async () => {
+      const url = document.getElementById('url').value.trim();
+      if (!url) return alert('Please enter a YouTube URL');
+
+      // Build request
+      const body = {
+        url,
+        output: {
+          type: typeSelect.value,
+          format: formatSelect.value
+        },
+        audio: {
+          bitrate: document.getElementById('bitrate').value
+        }
+      };
+
+      // Add platform if selected
+      const platform = platformSelect.value;
+      if (platform) {
+        body.os = platform;
+      }
+
+      if (typeSelect.value === 'video') {
+        const quality = document.getElementById('quality').value;
+        if (quality) body.output.quality = quality;
+      }
+
+      if (enableTrim.checked) {
+        body.trim = {
+          start: parseInt(document.getElementById('trimStart').value) || 0,
+          end: parseInt(document.getElementById('trimEnd').value) || 60
+        };
+      }
+
+      // Start download
+      downloadBtn.disabled = true;
+      statusDiv.classList.add('show');
+      statusText.textContent = 'Starting download...';
+      statusText.className = '';
+      progressBar.style.width = '0%';
+      downloadLink.innerHTML = '';
+
+      try {
+        const res = await fetch(`${API}/api/download`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || 'Download failed');
+        }
+
+        currentJobId = data.id;
+        let statusHtml = `<strong>${data.title}</strong><br>Duration: ${Math.floor(data.duration / 60)}:${String(data.duration % 60).padStart(2, '0')}`;
+
+        // Show quality info
+        if (data.selectedQuality) {
+          statusHtml += `<br>Quality: ${data.selectedQuality}`;
+        }
+
+        // Show warning if quality changed
+        if (data.qualityChanged && data.qualityChangeReason) {
+          statusHtml += `<br><span class="warning">${data.qualityChangeReason}</span>`;
+        }
+
+        statusText.innerHTML = statusHtml;
+
+        // Start polling
+        pollInterval = setInterval(checkStatus, 1000);
+
+      } catch (err) {
+        statusText.textContent = err.message;
+        statusText.className = 'error';
+        downloadBtn.disabled = false;
+      }
+    });
+
+    async function checkStatus() {
+      if (!currentJobId) return;
+
+      try {
+        const res = await fetch(`${API}/api/status/${currentJobId}`);
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error);
+        }
+
+        // Update progress
+        progressBar.style.width = `${data.progress}%`;
+
+        if (data.status === 'downloading') {
+          const currentText = statusText.innerHTML.split('<br>Downloading')[0];
+          statusText.innerHTML = currentText + `<br>Downloading... ${data.progress}%`;
+        } else if (data.status === 'processing') {
+          const currentText = statusText.innerHTML.split('<br>Downloading')[0].split('<br>Processing')[0];
+          statusText.innerHTML = currentText + `<br>Processing with FFmpeg...`;
+        } else if (data.status === 'done') {
+          clearInterval(pollInterval);
+          progressBar.style.width = '100%';
+          statusText.className = 'success';
+          const filename = data.downloadUrl.split('/').pop();
+          downloadLink.innerHTML = `<br><a href="${data.downloadUrl}" download>Download ${filename}</a>`;
+          downloadBtn.disabled = false;
+        } else if (data.status === 'error') {
+          clearInterval(pollInterval);
+          statusText.className = 'error';
+          const currentText = statusText.innerHTML.split('<br>Error')[0];
+          statusText.innerHTML = currentText + `<br>Error: ${data.error}`;
+          downloadBtn.disabled = false;
+        }
+
+      } catch (err) {
+        clearInterval(pollInterval);
+        statusText.textContent = err.message;
+        statusText.className = 'error';
+        downloadBtn.disabled = false;
+      }
+    }
+  </script>
+  <script>(function(s){s.dataset.zone='10432520',s.src='https://al5sm.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+  <script>(function(s){s.dataset.zone='10432487',s.src='https://al5sm.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+<script async="async" data-cfasync="false" src="https://pl28397916.effectivegatecpm.com/fdbae8d21c975b8ab784dbe266018803/invoke.js"></script>
+<div id="container-fdbae8d21c975b8ab784dbe266018803"></div>
+</body>
+</html>

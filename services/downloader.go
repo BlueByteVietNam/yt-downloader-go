@@ -240,7 +240,7 @@ func fetchRange(ctx context.Context, downloadURL string, start, end int64, chunk
 
 // DownloadFile is a simpler download function for small files
 func DownloadFile(ctx context.Context, downloadURL string, destPath string) error {
-	req, err := http.NewRequestWithContext(ctx, "GET", downloadURL, nil)
+	req, err := http.NewRequestWithConưtext(ctx, "GET", downloadURL, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}

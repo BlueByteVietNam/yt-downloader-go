@@ -228,7 +228,7 @@ func processJob(jobID string, meta *models.Meta, videoSelection *models.VideoSel
 
 	if meta.OutputType == "video" {
 		// Merge video and audio
-		outputFile, err = services.FFmpegMerge(jobDir, format, bitrate, meta.Files.Video.Name, meta.Files.Audio.Name)
+		outputFile, err = services.FFmpegMerge(jobDir, format, meta.Files.Video.Name, meta.Files.Audio.Name)
 		if err != nil {
 			log.Printf("[Job %s] FFmpeg merge error: %v\n", jobID, err)
 			utils.UpdateMetaError(jobID, "Processing failed: "+err.Error())
