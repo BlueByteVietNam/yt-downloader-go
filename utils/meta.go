@@ -101,46 +101,37 @@ func GetFileSize(path string) int64 {
 }
 
 // getDownloadedSize calculates total downloaded bytes for a file
-// Checks: final file, tmp file, or chunks directory
+// Priority: final file > chunks dir (downloading) > tmp file (merging)
 func getDownloadedSize(jobDir, fileName string, expectedSize int64) int64 {
 	basePath := filepath.Join(jobDir, fileName)
 
-	// Check if final file exists
+	// 1. Final file exists = done
 	if size := GetFileSize(basePath); size > 0 {
 		return expectedSize
 	}
 
-	// Check if single tmp file exists (small file download)
-	if size := GetFileSize(basePath + ".tmp"); size > 0 {
-		return size
-	}
-
-	// Check chunks directory (large file download)
+	// 2. Chunks dir exists = downloading
 	chunksDir := basePath + ".chunks"
-	info, err := os.Stat(chunksDir)
-	if err != nil || !info.IsDir() {
-		return 0
-	}
-
-	// Sum all chunk file sizes
-	var total int64
-	entries, err := os.ReadDir(chunksDir)
-	if err != nil {
-		return 0
-	}
-
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
+	if info, err := os.Stat(chunksDir); err == nil && info.IsDir() {
+		var total int64
+		entries, _ := os.ReadDir(chunksDir)
+		for _, entry := range entries {
+			if entry.IsDir() {
+				continue
+			}
+			if fileInfo, err := entry.Info(); err == nil {
+				total += fileInfo.Size()
+			}
 		}
-		fileInfo, err := entry.Info()
-		if err != nil {
-			continue
-		}
-		total += fileInfo.Size()
+		return total
 	}
 
-	return total
+	// 3. Tmp file exists (no chunks dir) = merging = download done
+	if GetFileSize(basePath+".tmp") > 0 {
+		return expectedSize
+	}
+
+	return 0
 }
 
 // CalculateProgress calculates download progress from file sizes
