@@ -23,9 +23,6 @@ const (
 	RetryDelay   = 100 * time.Millisecond
 	ChunkTimeout = 10 * time.Second
 
-	// Proxy (for Extract API) - now using WARP, keeping for reference
-	// ExtractProxyURL = "http://64.176.170.104:21589"
-
 	// Extract API
 	ExtractAPIBase    = "http://168.119.14.32:8300/api/youtube/video"
 	ExtractAPITimeout = 15 * time.Second
@@ -165,33 +162,6 @@ func NewWARPClient(timeout time.Duration) *http.Client {
 		Timeout: timeout,
 	}
 }
-
-// --- IPv6 rotation (commented out, replaced by WARP) ---
-// var IPv6Prefix = [8]byte{0x2a, 0x01, 0x04, 0xf8, 0x00, 0xa0, 0x61, 0xc5}
-//
-// func RandomIPv6() net.IP {
-// 	ip := make([]byte, 16)
-// 	copy(ip[:8], IPv6Prefix[:])
-// 	rand.Read(ip[8:])
-// 	return ip
-// }
-//
-// func NewIPv6Client(timeout time.Duration) *http.Client {
-// 	localAddr := &net.TCPAddr{IP: RandomIPv6()}
-// 	return &http.Client{
-// 		Transport: &http.Transport{
-// 			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-// 				dialer := &net.Dialer{
-// 					LocalAddr: localAddr,
-// 					Timeout:   10 * time.Second,
-// 				}
-// 				return dialer.DialContext(ctx, "tcp6", addr)
-// 			},
-// 			DisableKeepAlives: true,
-// 		},
-// 		Timeout: timeout,
-// 	}
-// }
 
 // HTTP Clients
 var ExtractClient *http.Client
