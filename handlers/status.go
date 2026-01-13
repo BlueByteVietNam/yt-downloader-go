@@ -13,25 +13,18 @@ func HandleStatus(c *fiber.Ctx) error {
 
 	// Validate job ID
 	if !utils.ValidateJobID(jobID) {
-		return c.Status(fiber.StatusBadRequest).JSON(models.ErrorResponse{
-			Error: "Invalid job ID format",
-		})
+		return utils.BadRequest(c, utils.ErrInvalidJobID, "Invalid job ID format")
 	}
 
 	// Check if job exists
 	if !utils.JobExists(jobID) {
-		return c.Status(fiber.StatusNotFound).JSON(models.ErrorResponse{
-			Error: "Job not found",
-		})
+		return utils.NotFound(c, utils.ErrJobNotFound, "Job not found")
 	}
 
 	// Read metadata
 	meta, err := utils.ReadMeta(jobID)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(models.ErrorResponse{
-			Error:  "Failed to read job metadata",
-			Detail: err.Error(),
-		})
+		return utils.InternalError(c, "Failed to read job metadata")
 	}
 
 	// Calculate progress
@@ -44,22 +37,25 @@ func HandleStatus(c *fiber.Ctx) error {
 		Duration: meta.Duration,
 	}
 
-	// StreamURL is available when ready or done
-	if meta.Status == "ready" || meta.Status == "done" {
+	// Set downloadUrl when completed
+	if meta.Status == models.StatusCompleted {
 		response.Progress = 100
-		response.StreamURL = utils.GenerateStreamURL(jobID)
+		if meta.Output != "" {
+			// Merged file available - use static file URL
+			response.DownloadURL = utils.GenerateSignedURL(jobID, meta.Output)
+		} else if meta.StreamOnly {
+			// Stream only - use stream URL
+			response.DownloadURL = utils.GenerateStreamURL(jobID)
+		}
 	}
 
-	// DownloadURL is only available when merged (done status)
-	if meta.Status == "done" && meta.Output != "" {
-		response.DownloadURL = utils.GenerateSignedURL(jobID, meta.Output)
+	// Set jobError when error
+	if meta.Status == models.StatusError {
+		response.JobError = meta.Error
 	}
 
-	if meta.Status == "error" {
-		response.Error = meta.Error
-	}
-
-	if detail != nil && meta.Status == "downloading" {
+	// Set detail only when pending
+	if meta.Status == models.StatusPending && detail != nil {
 		response.Detail = detail
 	}
 

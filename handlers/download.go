@@ -29,34 +29,25 @@ func init() {
 func HandleDownload(c *fiber.Ctx) error {
 	var req models.DownloadRequest
 	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(models.ErrorResponse{
-			Error: "Invalid request body",
-		})
+		return utils.BadRequest(c, utils.ErrInvalidRequest, "Invalid request body")
 	}
 
 	// Validate request
 	if err := utils.ValidateDownloadRequest(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(models.ErrorResponse{
-			Error: err.Error(),
-		})
+		return utils.BadRequest(c, utils.ErrValidationError, err.Error())
 	}
 
 	// Extract video ID
 	videoID, err := utils.ExtractVideoID(req.URL)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(models.ErrorResponse{
-			Error: err.Error(),
-		})
+		return utils.BadRequest(c, utils.ErrInvalidURL, err.Error())
 	}
 
 	// Fetch video metadata
 	extractData, err := services.Extract(videoID)
 	if err != nil {
 		log.Printf("[Download] Extract API error: %v\n", err)
-		return c.Status(fiber.StatusBadGateway).JSON(models.ErrorResponse{
-			Error:  "Failed to fetch video metadata",
-			Detail: err.Error(),
-		})
+		return utils.InternalError(c, "Failed to fetch video metadata")
 	}
 
 	// Set default values
@@ -76,22 +67,16 @@ func HandleDownload(c *fiber.Ctx) error {
 	if req.Output.Type == "video" {
 		videoSelection = services.SelectVideo(extractData, req.Output.Quality, osType)
 		if videoSelection.Stream == nil {
-			return c.Status(fiber.StatusNotFound).JSON(models.ErrorResponse{
-				Error: "No compatible video stream found",
-			})
+			return utils.NotFound(c, utils.ErrVideoNotFound, "No compatible video stream found")
 		}
 		audioStream = services.SelectAudio(extractData, req.Audio.TrackID, osType)
 		if audioStream == nil {
-			return c.Status(fiber.StatusNotFound).JSON(models.ErrorResponse{
-				Error: "No compatible audio stream found",
-			})
+			return utils.NotFound(c, utils.ErrAudioNotFound, "No compatible audio stream found")
 		}
 	} else {
 		audioStream = services.SelectAudio(extractData, req.Audio.TrackID, osType)
 		if audioStream == nil {
-			return c.Status(fiber.StatusNotFound).JSON(models.ErrorResponse{
-				Error: "No compatible audio stream found",
-			})
+			return utils.NotFound(c, utils.ErrAudioNotFound, "No compatible audio stream found")
 		}
 	}
 
@@ -100,15 +85,13 @@ func HandleDownload(c *fiber.Ctx) error {
 
 	// Create job directory
 	if err := utils.CreateJobDir(jobID); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(models.ErrorResponse{
-			Error: "Failed to create job directory",
-		})
+		return utils.InternalError(c, "Failed to create job directory")
 	}
 
 	// Prepare metadata
 	meta := &models.Meta{
 		ID:         jobID,
-		Status:     "downloading",
+		Status:     models.StatusPending,
 		CreatedAt:  time.Now().UnixMilli(),
 		VideoID:    videoID,
 		Title:      extractData.Title,
@@ -144,9 +127,7 @@ func HandleDownload(c *fiber.Ctx) error {
 	// Save metadata
 	if err := utils.WriteMeta(jobID, meta); err != nil {
 		utils.DeleteJobDir(jobID)
-		return c.Status(fiber.StatusInternalServerError).JSON(models.ErrorResponse{
-			Error: "Failed to save job metadata",
-		})
+		return utils.InternalError(c, "Failed to save job metadata")
 	}
 
 	// Start background processing
@@ -230,7 +211,6 @@ func processJob(jobID string, meta *models.Meta, videoSelection *models.VideoSel
 	}
 
 	log.Printf("[Job %s] Processing...\n", jobID)
-	utils.UpdateMetaStatus(jobID, "processing")
 
 	// Process with FFmpeg
 	var outputFile string

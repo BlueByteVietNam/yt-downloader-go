@@ -38,15 +38,21 @@ type DownloadResponse struct {
 	NeedsReencode       bool    `json:"needsReencode"`
 }
 
+// Job status constants
+const (
+	StatusPending   = "pending"
+	StatusCompleted = "completed"
+	StatusError     = "error"
+)
+
 // StatusResponse is returned when checking job status
 type StatusResponse struct {
-	Status      string          `json:"status"` // downloading, processing, ready, done, error
+	Status      string          `json:"status"` // pending, completed, error
 	Progress    int             `json:"progress"`
 	Title       string          `json:"title,omitempty"`
 	Duration    float64         `json:"duration,omitempty"`
-	StreamURL   string          `json:"streamUrl,omitempty"`   // available when ready or done
-	DownloadURL string          `json:"downloadUrl,omitempty"` // only when done (merged)
-	Error       string          `json:"error,omitempty"`
+	DownloadURL string          `json:"downloadUrl,omitempty"` // only when completed
+	JobError    string          `json:"jobError,omitempty"`    // only when status is error
 	Detail      *ProgressDetail `json:"detail,omitempty"`
 }
 
@@ -58,7 +64,7 @@ type ProgressDetail struct {
 // Meta represents job metadata stored in meta.json
 type Meta struct {
 	ID         string      `json:"id"`
-	Status     string      `json:"status"` // downloading, processing, ready, done, error
+	Status     string      `json:"status"` // pending, completed, error
 	CreatedAt  int64       `json:"createdAt"`
 	VideoID    string      `json:"videoId"`
 	Title      string      `json:"title"`
@@ -117,12 +123,6 @@ type VideoSelectionResult struct {
 	NeedsReencode       bool
 }
 
-// ErrorResponse for API errors
-type ErrorResponse struct {
-	Error  string `json:"error"`
-	Detail string `json:"detail,omitempty"`
-}
-
 // HealthResponse for health check
 type HealthResponse struct {
 	Status    string `json:"status"`
@@ -131,5 +131,5 @@ type HealthResponse struct {
 
 // DeleteResponse for job deletion
 type DeleteResponse struct {
-	Success bool `json:"success"`
+	Deleted bool `json:"deleted"`
 }

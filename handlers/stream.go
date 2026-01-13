@@ -26,55 +26,41 @@ func HandleStream(c *fiber.Ctx) error {
 
 	// Validate job ID
 	if !utils.ValidateJobID(jobID) {
-		return c.Status(fiber.StatusBadRequest).JSON(models.ErrorResponse{
-			Error: "Invalid job ID format",
-		})
+		return utils.BadRequest(c, utils.ErrInvalidJobID, "Invalid job ID format")
 	}
 
 	// Validate signed URL
 	if token == "" || expiresStr == "" {
-		return c.Status(fiber.StatusUnauthorized).JSON(models.ErrorResponse{
-			Error: "Missing token or expires parameter",
-		})
+		return utils.Unauthorized(c, "Missing token or expires parameter")
 	}
 
 	expires, err := utils.ParseExpires(expiresStr)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(models.ErrorResponse{
-			Error: "Invalid expires parameter",
-		})
+		return utils.BadRequest(c, utils.ErrInvalidExpires, "Invalid expires parameter")
 	}
 
 	if !utils.ValidateStreamURL(jobID, token, expires) {
-		return c.Status(fiber.StatusForbidden).JSON(models.ErrorResponse{
-			Error: "Invalid or expired stream link",
-		})
+		return utils.Forbidden(c, "Invalid or expired stream link")
 	}
 
 	// Check if job exists
 	if !utils.JobExists(jobID) {
-		return c.Status(fiber.StatusNotFound).JSON(models.ErrorResponse{
-			Error: "Job not found",
-		})
+		return utils.NotFound(c, utils.ErrJobNotFound, "Job not found")
 	}
 
 	// Read metadata
 	meta, err := utils.ReadMeta(jobID)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(models.ErrorResponse{
-			Error: "Failed to read job metadata",
-		})
+		return utils.InternalError(c, "Failed to read job metadata")
 	}
 
 	// Check if job is ready for streaming
-	if meta.Status != "ready" && meta.Status != "done" {
-		return c.Status(fiber.StatusBadRequest).JSON(models.ErrorResponse{
-			Error: "Job is not ready for streaming",
-		})
+	if meta.Status != models.StatusCompleted {
+		return utils.BadRequest(c, utils.ErrJobNotReady, "Job is not ready for streaming")
 	}
 
-	// If already merged, redirect to file download
-	if meta.Status == "done" && meta.Output != "" && !meta.StreamOnly {
+	// If already merged (not stream-only), redirect to file download
+	if meta.Output != "" && !meta.StreamOnly {
 		downloadURL := utils.GenerateSignedURL(jobID, meta.Output)
 		return c.Redirect(downloadURL, fiber.StatusTemporaryRedirect)
 	}
@@ -94,14 +80,10 @@ func streamVideo(c *fiber.Ctx, meta *models.Meta) error {
 
 	// Check files exist
 	if _, err := os.Stat(videoPath); err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(models.ErrorResponse{
-			Error: "Video file not found",
-		})
+		return utils.NotFound(c, utils.ErrFileNotFound, "Video file not found")
 	}
 	if _, err := os.Stat(audioPath); err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(models.ErrorResponse{
-			Error: "Audio file not found",
-		})
+		return utils.NotFound(c, utils.ErrFileNotFound, "Audio file not found")
 	}
 
 	// Determine output format and content type
@@ -147,9 +129,7 @@ func streamAudio(c *fiber.Ctx, meta *models.Meta) error {
 
 	// Check file exists
 	if _, err := os.Stat(audioPath); err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(models.ErrorResponse{
-			Error: "Audio file not found",
-		})
+		return utils.NotFound(c, utils.ErrFileNotFound, "Audio file not found")
 	}
 
 	// Determine output format
@@ -224,16 +204,12 @@ func runFFmpegStream(c *fiber.Ctx, args []string, jobID string) error {
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		log.Printf("[Stream %s] Failed to create stdout pipe: %v\n", jobID, err)
-		return c.Status(fiber.StatusInternalServerError).JSON(models.ErrorResponse{
-			Error: "Failed to start stream",
-		})
+		return utils.InternalError(c, "Failed to start stream")
 	}
 
 	if err := cmd.Start(); err != nil {
 		log.Printf("[Stream %s] Failed to start FFmpeg: %v\n", jobID, err)
-		return c.Status(fiber.StatusInternalServerError).JSON(models.ErrorResponse{
-			Error: "Failed to start stream",
-		})
+		return utils.InternalError(c, "Failed to start stream")
 	}
 
 	// Stream FFmpeg output to client with rate limiting

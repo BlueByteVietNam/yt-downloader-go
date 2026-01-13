@@ -29,15 +29,6 @@
     .progress { height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; }
     .progress-bar { height: 100%; background: #3b82f6; transition: width 0.3s ease; border-radius: 4px; }
     .progress-bar.done { background: #22c55e; }
-    .progress-bar.merging {
-      background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 50%, #3b82f6 100%);
-      background-size: 200% 100%;
-      animation: merging 1.5s ease-in-out infinite;
-    }
-    @keyframes merging {
-      0% { background-position: 200% 0; }
-      100% { background-position: -200% 0; }
-    }
 
     .detail-progress { margin-top: 12px; display: flex; gap: 16px; font-size: 0.85rem; }
     .detail-item { display: flex; align-items: center; gap: 6px; color: #64748b; }
@@ -260,10 +251,18 @@
       return `${m}:${s.toString().padStart(2, '0')}`;
     }
 
+    // Get error message from response
+    function getErrorMessage(data) {
+      if (data.error && data.error.message) {
+        return data.error.message;
+      }
+      return 'Unknown error';
+    }
+
     // Reset status UI
     function resetStatus() {
       els.progressBar.style.width = '0%';
-      els.progressBar.classList.remove('done', 'merging');
+      els.progressBar.classList.remove('done');
       els.statusPhase.textContent = 'Starting...';
       els.statusPercent.textContent = '0%';
       els.detailProgress.style.display = 'none';
@@ -310,7 +309,7 @@
         });
 
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Request failed');
+        if (!res.ok) throw new Error(getErrorMessage(data));
 
         currentJobId = data.id;
         els.statusTitle.textContent = data.title;
@@ -337,52 +336,50 @@
       try {
         const res = await fetch(`${API}/api/status/${currentJobId}`);
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error);
+        if (!res.ok) throw new Error(getErrorMessage(data));
 
         // Update progress
         els.progressBar.style.width = `${data.progress}%`;
         els.statusPercent.textContent = `${data.progress}%`;
 
-        // Show detail progress for video downloads
-        if (data.detail && (data.detail.video !== undefined || data.detail.audio !== undefined)) {
-          els.detailProgress.style.display = 'flex';
-          if (data.detail.video !== undefined) {
-            els.videoProgress.style.width = `${data.detail.video}%`;
-            els.videoPercent.textContent = `${data.detail.video}%`;
+        // Show detail progress for video downloads (only when pending)
+        if (data.status === 'pending' && data.detail) {
+          if (data.detail.video !== undefined || data.detail.audio !== undefined) {
+            els.detailProgress.style.display = 'flex';
+            if (data.detail.video !== undefined) {
+              els.videoProgress.style.width = `${data.detail.video}%`;
+              els.videoPercent.textContent = `${data.detail.video}%`;
+            }
+            if (data.detail.audio !== undefined) {
+              els.audioProgress.style.width = `${data.detail.audio}%`;
+              els.audioPercent.textContent = `${data.detail.audio}%`;
+            }
           }
-          if (data.detail.audio !== undefined) {
-            els.audioProgress.style.width = `${data.detail.audio}%`;
-            els.audioPercent.textContent = `${data.detail.audio}%`;
-          }
-        }
-
-        // Status phases
-        if (data.status === 'downloading') {
           els.statusPhase.textContent = 'Downloading...';
-        } else if (data.status === 'processing') {
-          els.statusPhase.textContent = 'Merging...';
-          els.detailProgress.style.display = 'none';
-          els.progressBar.classList.add('merging');
-        } else if (data.status === 'done') {
+        } else if (data.status === 'completed') {
+          // Completed
           clearInterval(pollInterval);
           els.progressBar.style.width = '100%';
-          els.progressBar.classList.remove('merging');
           els.progressBar.classList.add('done');
           els.statusPhase.textContent = 'Complete!';
           els.statusPercent.textContent = '100%';
+          els.detailProgress.style.display = 'none';
 
-          const filename = data.downloadUrl.split('/').pop();
-          els.downloadLink.innerHTML = `<a href="${data.downloadUrl}" download>
-            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
-            </svg>
-            Download ${filename}
-          </a>`;
+          if (data.downloadUrl) {
+            const filename = data.downloadUrl.split('/').pop().split('?')[0];
+            els.downloadLink.innerHTML = `<a href="${data.downloadUrl}" download>
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+              </svg>
+              Download ${decodeURIComponent(filename)}
+            </a>`;
+          }
           els.downloadBtn.disabled = false;
         } else if (data.status === 'error') {
+          // Error
           clearInterval(pollInterval);
           els.statusPhase.textContent = 'Error';
-          els.errorBox.textContent = data.error;
+          els.errorBox.textContent = data.jobError || 'Unknown error';
           els.errorBox.style.display = 'block';
           els.downloadBtn.disabled = false;
         }

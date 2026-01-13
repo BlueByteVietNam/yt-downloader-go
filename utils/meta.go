@@ -59,7 +59,7 @@ func UpdateMetaError(jobID string, errMsg string) error {
 	if err != nil {
 		return err
 	}
-	meta.Status = "error"
+	meta.Status = models.StatusError
 	meta.Error = errMsg
 	return WriteMeta(jobID, meta)
 }
@@ -70,18 +70,18 @@ func UpdateMetaOutput(jobID string, output string) error {
 	if err != nil {
 		return err
 	}
-	meta.Status = "done"
+	meta.Status = models.StatusCompleted
 	meta.Output = output
 	return WriteMeta(jobID, meta)
 }
 
-// UpdateMetaStreamOnly marks the job as ready for streaming (no merge)
+// UpdateMetaStreamOnly marks the job as completed for streaming (no merge)
 func UpdateMetaStreamOnly(jobID string) error {
 	meta, err := ReadMeta(jobID)
 	if err != nil {
 		return err
 	}
-	meta.Status = "ready"
+	meta.Status = models.StatusCompleted
 	meta.StreamOnly = true
 	return WriteMeta(jobID, meta)
 }
@@ -147,15 +147,11 @@ func getDownloadedSize(jobDir, fileName string, expectedSize int64) int64 {
 
 // CalculateProgress calculates download progress from file sizes
 func CalculateProgress(meta *models.Meta) (int, *models.ProgressDetail) {
-	if meta.Status == "done" || meta.Status == "ready" {
+	if meta.Status == models.StatusCompleted {
 		return 100, nil
 	}
-	if meta.Status == "error" {
+	if meta.Status == models.StatusError {
 		return 0, nil
-	}
-	if meta.Status == "processing" {
-		// Download done, now merging - keep at 100%
-		return 100, nil
 	}
 
 	jobDir := GetJobDir(meta.ID)

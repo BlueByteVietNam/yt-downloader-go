@@ -13,27 +13,20 @@ func HandleDeleteJob(c *fiber.Ctx) error {
 
 	// Validate job ID
 	if !utils.ValidateJobID(jobID) {
-		return c.Status(fiber.StatusBadRequest).JSON(models.ErrorResponse{
-			Error: "Invalid job ID format",
-		})
+		return utils.BadRequest(c, utils.ErrInvalidJobID, "Invalid job ID format")
 	}
 
 	// Check if job exists
 	if !utils.JobExists(jobID) {
-		return c.Status(fiber.StatusNotFound).JSON(models.ErrorResponse{
-			Error: "Job not found",
-		})
+		return utils.NotFound(c, utils.ErrJobNotFound, "Job not found")
 	}
 
 	// Delete job directory
 	if err := utils.DeleteJobDir(jobID); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(models.ErrorResponse{
-			Error:  "Failed to delete job",
-			Detail: err.Error(),
-		})
+		return utils.InternalError(c, "Failed to delete job")
 	}
 
 	return c.JSON(models.DeleteResponse{
-		Success: true,
+		Deleted: true,
 	})
 }
