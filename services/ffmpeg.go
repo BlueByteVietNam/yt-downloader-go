@@ -74,100 +74,48 @@ func FFmpegConvertAudio(jobDir string, format string, bitrate string, audioFile 
 	return filepath.Base(outputFile), nil
 }
 
-// FFmpegTrim trims video file
-func FFmpegTrim(jobDir string, format string, trim *models.TrimConfig, bitrate string) (string, error) {
+// ffmpegTrim is the internal trim function for both video and audio
+func ffmpegTrim(jobDir string, format string, trim *models.TrimConfig, bitrate string, isVideo bool) (string, error) {
 	if trim.End <= trim.Start {
 		return "", fmt.Errorf("invalid trim range: end (%.2f) must be greater than start (%.2f)", trim.End, trim.Start)
 	}
 
 	inputPath := filepath.Join(jobDir, fmt.Sprintf("output.%s", format))
 	outputPath := filepath.Join(jobDir, fmt.Sprintf("output_trimmed.%s", format))
-
 	duration := trim.End - trim.Start
 
 	var args []string
 	if trim.Accurate {
-		// Accurate trim: re-encode
-		videoCodec := config.VideoCodecMap[format]
-		if videoCodec == "" {
-			videoCodec = "libx264"
-		}
-		audioCodec := config.AudioCodecMap[format]
-		if audioCodec == "" {
-			audioCodec = "aac"
-		}
-
 		args = []string{
 			"-y",
 			"-ss", fmt.Sprintf("%.3f", trim.Start),
 			"-i", inputPath,
 			"-t", fmt.Sprintf("%.3f", duration),
-			"-c:v", videoCodec,
-			"-c:a", audioCodec,
 		}
 
-		if bitrate != "" {
-			args = append(args, "-b:a", bitrate)
+		if isVideo {
+			videoCodec := config.VideoCodecMap[format]
+			if videoCodec == "" {
+				videoCodec = "libx264"
+			}
+			audioCodec := config.AudioCodecMap[format]
+			if audioCodec == "" {
+				audioCodec = "aac"
+			}
+			args = append(args, "-c:v", videoCodec, "-c:a", audioCodec)
+			if bitrate != "" {
+				args = append(args, "-b:a", bitrate)
+			}
+		} else {
+			audioCodec := config.AudioCodecMap[format]
+			if audioCodec == "" {
+				audioCodec = "aac"
+			}
+			args = append(args, "-threads", "0", "-c:a", audioCodec)
+			if bitrate != "" && audioCodec != "pcm_s16le" && audioCodec != "flac" {
+				args = append(args, "-b:a", bitrate)
+			}
 		}
-
-		args = append(args, outputPath)
-	} else {
-		// Fast trim: copy at keyframes
-		args = []string{
-			"-y",
-			"-ss", fmt.Sprintf("%.3f", trim.Start),
-			"-i", inputPath,
-			"-t", fmt.Sprintf("%.3f", duration),
-			"-c", "copy",
-			outputPath,
-		}
-	}
-
-	if err := runFFmpeg(args); err != nil {
-		return "", fmt.Errorf("trim failed: %w", err)
-	}
-
-	// Replace original with trimmed (remove first to ensure clean rename on all platforms)
-	_ = os.Remove(inputPath)
-	if err := os.Rename(outputPath, inputPath); err != nil {
-		return "", fmt.Errorf("failed to rename trimmed file: %w", err)
-	}
-
-	return fmt.Sprintf("output.%s", format), nil
-}
-
-// FFmpegTrimAudio trims audio file
-func FFmpegTrimAudio(jobDir string, format string, trim *models.TrimConfig, bitrate string) (string, error) {
-	if trim.End <= trim.Start {
-		return "", fmt.Errorf("invalid trim range: end (%.2f) must be greater than start (%.2f)", trim.End, trim.Start)
-	}
-
-	inputPath := filepath.Join(jobDir, fmt.Sprintf("output.%s", format))
-	outputPath := filepath.Join(jobDir, fmt.Sprintf("output_trimmed.%s", format))
-
-	duration := trim.End - trim.Start
-
-	var args []string
-	if trim.Accurate {
-		// Accurate trim: re-encode
-		codec := config.AudioCodecMap[format]
-		if codec == "" {
-			codec = "aac"
-		}
-
-		args = []string{
-			"-y",
-			"-ss", fmt.Sprintf("%.3f", trim.Start),
-			"-i", inputPath,
-			"-t", fmt.Sprintf("%.3f", duration),
-			"-threads", "0",
-			"-c:a", codec,
-		}
-
-		if bitrate != "" && codec != "pcm_s16le" && codec != "flac" {
-			args = append(args, "-b:a", bitrate)
-		}
-
 		args = append(args, outputPath)
 	} else {
 		// Fast trim: copy
@@ -176,22 +124,35 @@ func FFmpegTrimAudio(jobDir string, format string, trim *models.TrimConfig, bitr
 			"-ss", fmt.Sprintf("%.3f", trim.Start),
 			"-i", inputPath,
 			"-t", fmt.Sprintf("%.3f", duration),
-			"-c:a", "copy",
-			outputPath,
 		}
+		if isVideo {
+			args = append(args, "-c", "copy")
+		} else {
+			args = append(args, "-c:a", "copy")
+		}
+		args = append(args, outputPath)
 	}
 
 	if err := runFFmpeg(args); err != nil {
-		return "", fmt.Errorf("audio trim failed: %w", err)
+		return "", fmt.Errorf("trim failed: %w", err)
 	}
 
-	// Replace original with trimmed (remove first to ensure clean rename on all platforms)
 	_ = os.Remove(inputPath)
 	if err := os.Rename(outputPath, inputPath); err != nil {
 		return "", fmt.Errorf("failed to rename trimmed file: %w", err)
 	}
 
 	return fmt.Sprintf("output.%s", format), nil
+}
+
+// FFmpegTrim trims video file
+func FFmpegTrim(jobDir string, format string, trim *models.TrimConfig, bitrate string) (string, error) {
+	return ffmpegTrim(jobDir, format, trim, bitrate, true)
+}
+
+// FFmpegTrimAudio trims audio file
+func FFmpegTrimAudio(jobDir string, format string, trim *models.TrimConfig, bitrate string) (string, error) {
+	return ffmpegTrim(jobDir, format, trim, bitrate, false)
 }
 
 // runFFmpeg executes ffmpeg command

@@ -213,9 +213,7 @@ func fetchRange(ctx context.Context, downloadURL string, start, end int64, chunk
 	req.Header.Set("Origin", "https://www.youtube.com")
 	req.Header.Set("Referer", "https://www.youtube.com/")
 
-	// New client per request = new random IPv6
-	client := config.NewWARPClient(config.ChunkTimeout)
-	resp, err := client.Do(req)
+	resp, err := config.DownloadClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
@@ -247,8 +245,7 @@ func DownloadFile(ctx context.Context, downloadURL string, destPath string) erro
 
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
 
-	client := config.NewWARPClient(config.ChunkTimeout)
-	resp, err := client.Do(req)
+	resp, err := config.DownloadClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("request failed: %w", err)
 	}

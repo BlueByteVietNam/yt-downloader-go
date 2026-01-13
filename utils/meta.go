@@ -43,31 +43,6 @@ func WriteMeta(jobID string, meta *models.Meta) error {
 	return os.WriteFile(GetMetaPath(jobID), data, 0644)
 }
 
-// UpdateMeta updates specific fields in meta.json
-func UpdateMeta(jobID string, updates map[string]interface{}) error {
-	meta, err := ReadMeta(jobID)
-	if err != nil {
-		return err
-	}
-
-	// Convert meta to map for updates
-	data, _ := json.Marshal(meta)
-	var metaMap map[string]interface{}
-	json.Unmarshal(data, &metaMap)
-
-	// Apply updates
-	for k, v := range updates {
-		metaMap[k] = v
-	}
-
-	// Convert back to Meta
-	data, _ = json.Marshal(metaMap)
-	var updatedMeta models.Meta
-	json.Unmarshal(data, &updatedMeta)
-
-	return WriteMeta(jobID, &updatedMeta)
-}
-
 // UpdateMetaStatus updates the status field
 func UpdateMetaStatus(jobID string, status string) error {
 	meta, err := ReadMeta(jobID)
@@ -194,11 +169,4 @@ func CalculateProgress(meta *models.Meta) (int, *models.ProgressDetail) {
 	}
 
 	return 0, nil
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }

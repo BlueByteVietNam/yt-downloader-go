@@ -146,27 +146,33 @@ var MimeToExt = map[string]string{
 // WARP Proxy config
 const WARPProxyAddr = "127.0.0.1:1111"
 
-// NewWARPClient creates an HTTP client that uses WARP SOCKS5 proxy
-func NewWARPClient(timeout time.Duration) *http.Client {
-	return &http.Client{
-		Transport: &http.Transport{
-			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				dialer, err := proxy.SOCKS5("tcp", WARPProxyAddr, nil, proxy.Direct)
-				if err != nil {
-					return nil, err
-				}
-				return dialer.Dial(network, addr)
-			},
-			DisableKeepAlives: true,
-		},
-		Timeout: timeout,
-	}
+// HTTP Clients (reuse connections via pooling)
+var (
+	ExtractClient  *http.Client
+	DownloadClient *http.Client
+)
+
+// Shared WARP transport with connection pooling
+var warpTransport = &http.Transport{
+	DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+		dialer, err := proxy.SOCKS5("tcp", WARPProxyAddr, nil, proxy.Direct)
+		if err != nil {
+			return nil, err
+		}
+		return dialer.Dial(network, addr)
+	},
+	MaxIdleConns:        100,
+	MaxIdleConnsPerHost: 10,
+	IdleConnTimeout:     90 * time.Second,
 }
 
-// HTTP Clients
-var ExtractClient *http.Client
-
 func init() {
-	// Extract API client using WARP proxy
-	ExtractClient = NewWARPClient(ExtractAPITimeout)
+	ExtractClient = &http.Client{
+		Transport: warpTransport,
+		Timeout:   ExtractAPITimeout,
+	}
+	DownloadClient = &http.Client{
+		Transport: warpTransport,
+		Timeout:   ChunkTimeout,
+	}
 }
