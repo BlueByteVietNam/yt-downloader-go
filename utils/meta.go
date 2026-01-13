@@ -143,7 +143,8 @@ func CalculateProgress(meta *models.Meta) (int, *models.ProgressDetail) {
 		return 0, nil
 	}
 	if meta.Status == "processing" {
-		return 85, nil
+		// Download done, now merging - keep at 100%
+		return 100, nil
 	}
 
 	jobDir := GetJobDir(meta.ID)
@@ -166,9 +167,9 @@ func CalculateProgress(meta *models.Meta) (int, *models.ProgressDetail) {
 		detail.Video = min(videoProgress, 100)
 		detail.Audio = min(audioProgress, 100)
 
-		// Weighted progress: video 70%, audio 30%, download phase 80%
-		progress := int((float64(detail.Video)*0.7 + float64(detail.Audio)*0.3) * 0.8)
-		return min(progress, 80), detail
+		// Weighted progress: video 70%, audio 30%
+		progress := int(float64(detail.Video)*0.7 + float64(detail.Audio)*0.3)
+		return min(progress, 100), detail
 	} else if meta.Files.Audio != nil {
 		// Audio only
 		audioSize := getDownloadedSize(jobDir, meta.Files.Audio.Name, meta.Files.Audio.Size)
@@ -179,8 +180,7 @@ func CalculateProgress(meta *models.Meta) (int, *models.ProgressDetail) {
 		}
 
 		detail.Audio = min(audioProgress, 100)
-		progress := int(float64(detail.Audio) * 0.8)
-		return min(progress, 80), detail
+		return min(audioProgress, 100), detail
 	}
 
 	return 0, nil

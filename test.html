@@ -5,30 +5,53 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>YT Downloader Test</title>
   <style>
-    * { box-sizing: border-box; font-family: system-ui, sans-serif; }
-    body { max-width: 600px; margin: 40px auto; padding: 20px; background: #f5f5f5; }
-    h1 { font-size: 1.5rem; margin-bottom: 20px; }
-    .form-group { margin-bottom: 15px; }
-    label { display: block; margin-bottom: 5px; font-weight: 500; }
-    input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
-    .row { display: flex; gap: 10px; }
+    * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
+    body { max-width: 640px; margin: 40px auto; padding: 20px; background: #f8fafc; color: #1e293b; }
+    h1 { font-size: 1.5rem; margin-bottom: 24px; color: #0f172a; }
+    .form-group { margin-bottom: 16px; }
+    label { display: block; margin-bottom: 6px; font-weight: 500; font-size: 0.9rem; color: #475569; }
+    input, select { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 1rem; background: #fff; }
+    input:focus, select:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+    .row { display: flex; gap: 12px; }
     .row > * { flex: 1; }
-    button { width: 100%; padding: 12px; background: #2563eb; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem; }
-    button:hover { background: #1d4ed8; }
-    button:disabled { background: #9ca3af; cursor: not-allowed; }
-    #status { margin-top: 20px; padding: 15px; background: white; border-radius: 4px; display: none; }
+    button { width: 100%; padding: 12px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 1rem; font-weight: 500; transition: background 0.2s; }
+    button:hover { background: #2563eb; }
+    button:disabled { background: #94a3b8; cursor: not-allowed; }
+
+    #status { margin-top: 24px; padding: 16px; background: #fff; border-radius: 8px; border: 1px solid #e2e8f0; display: none; }
     #status.show { display: block; }
-    .progress { height: 20px; background: #e5e7eb; border-radius: 4px; overflow: hidden; margin: 10px 0; }
-    .progress-bar { height: 100%; background: #22c55e; transition: width 0.3s; }
+
+    .status-header { font-weight: 600; margin-bottom: 8px; }
+    .status-info { font-size: 0.9rem; color: #64748b; margin-bottom: 12px; }
+
+    .progress-container { margin: 16px 0; }
+    .progress-label { display: flex; justify-content: space-between; font-size: 0.85rem; color: #64748b; margin-bottom: 4px; }
+    .progress { height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; }
+    .progress-bar { height: 100%; background: #3b82f6; transition: width 0.3s ease; border-radius: 4px; }
+    .progress-bar.done { background: #22c55e; }
+
+    .detail-progress { margin-top: 12px; display: flex; gap: 16px; font-size: 0.85rem; }
+    .detail-item { display: flex; align-items: center; gap: 6px; color: #64748b; }
+    .detail-bar { width: 60px; height: 4px; background: #e2e8f0; border-radius: 2px; overflow: hidden; }
+    .detail-bar-fill { height: 100%; background: #3b82f6; transition: width 0.3s; }
+
     .error { color: #dc2626; }
     .success { color: #16a34a; }
-    .warning { color: #d97706; font-size: 0.9rem; margin-top: 5px; }
-    a { color: #2563eb; }
-    #trimFields { display: none; }
+    .warning { color: #d97706; background: #fef3c7; padding: 8px 12px; border-radius: 6px; font-size: 0.85rem; margin-top: 8px; }
+
+    .download-link { margin-top: 16px; }
+    .download-link a { display: inline-flex; align-items: center; gap: 8px; background: #22c55e; color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: 500; }
+    .download-link a:hover { background: #16a34a; }
+
+    #trimFields { display: none; margin-top: 8px; }
     #trimFields.show { display: block; }
     #qualityGroup { display: none; }
     #qualityGroup.show { display: block; }
-    .info-box { background: #dbeafe; padding: 10px; border-radius: 4px; margin-bottom: 15px; font-size: 0.85rem; }
+
+    .checkbox-label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+    .checkbox-label input { width: auto; }
+
+    .info-box { background: #eff6ff; border: 1px solid #bfdbfe; padding: 10px 12px; border-radius: 6px; margin-bottom: 16px; font-size: 0.85rem; color: #1e40af; }
   </style>
 </head>
 <body>
@@ -43,7 +66,7 @@
     <div class="form-group">
       <label>Platform</label>
       <select id="platform">
-        <option value="">Auto (Default)</option>
+        <option value="">Auto</option>
         <option value="ios">iOS</option>
         <option value="android">Android</option>
         <option value="macos">macOS</option>
@@ -65,17 +88,13 @@
   <div class="row">
     <div class="form-group">
       <label>Format</label>
-      <select id="format">
-        <option value="mp4">MP4</option>
-        <option value="webm">WebM</option>
-        <option value="mkv">MKV</option>
-      </select>
+      <select id="format"></select>
     </div>
     <div class="form-group" id="qualityGroup">
       <label>Quality</label>
       <select id="quality">
         <option value="">Auto (Best)</option>
-        <option value="2160p">2160p (4K)</option>
+        <option value="2160p">4K (2160p)</option>
         <option value="1440p">1440p</option>
         <option value="1080p">1080p</option>
         <option value="720p">720p</option>
@@ -88,15 +107,18 @@
   <div class="form-group">
     <label>Audio Bitrate</label>
     <select id="bitrate">
-      <option value="192k">192k</option>
-      <option value="128k">128k</option>
-      <option value="320k">320k</option>
-      <option value="64k">64k</option>
+      <option value="192k">192 kbps</option>
+      <option value="128k">128 kbps</option>
+      <option value="320k">320 kbps</option>
+      <option value="64k">64 kbps</option>
     </select>
   </div>
 
   <div class="form-group">
-    <label><input type="checkbox" id="enableTrim"> Enable Trim</label>
+    <label class="checkbox-label">
+      <input type="checkbox" id="enableTrim">
+      <span>Enable Trim</span>
+    </label>
   </div>
 
   <div id="trimFields">
@@ -115,9 +137,35 @@
   <button id="downloadBtn">Download</button>
 
   <div id="status">
-    <div id="statusText"></div>
-    <div class="progress"><div class="progress-bar" id="progressBar"></div></div>
-    <div id="downloadLink"></div>
+    <div class="status-header" id="statusTitle"></div>
+    <div class="status-info" id="statusInfo"></div>
+
+    <div class="progress-container">
+      <div class="progress-label">
+        <span id="statusPhase">Downloading...</span>
+        <span id="statusPercent">0%</span>
+      </div>
+      <div class="progress">
+        <div class="progress-bar" id="progressBar"></div>
+      </div>
+    </div>
+
+    <div class="detail-progress" id="detailProgress" style="display: none;">
+      <div class="detail-item">
+        <span>Video:</span>
+        <div class="detail-bar"><div class="detail-bar-fill" id="videoProgress"></div></div>
+        <span id="videoPercent">0%</span>
+      </div>
+      <div class="detail-item">
+        <span>Audio:</span>
+        <div class="detail-bar"><div class="detail-bar-fill" id="audioProgress"></div></div>
+        <span id="audioPercent">0%</span>
+      </div>
+    </div>
+
+    <div id="warningBox" class="warning" style="display: none;"></div>
+    <div id="errorBox" class="error" style="display: none;"></div>
+    <div id="downloadLink" class="download-link"></div>
   </div>
 
   <script>
@@ -125,111 +173,125 @@
     let currentJobId = null;
     let pollInterval = null;
 
-    // Platform info
     const platformInfo = {
-      ios: 'iOS: Max 1080p (H.264 only), AAC audio',
-      android: 'Android: All qualities, AV1/VP9/H.264, Opus/AAC audio',
-      macos: 'macOS: Max 1080p (H.264 only), AAC audio',
-      windows: 'Windows: All qualities, AV1/VP9/H.264, Opus/AAC audio',
-      linux: 'Linux: All qualities, AV1/VP9/H.264, Opus/AAC audio'
+      ios: 'iOS: Max 1080p, H.264 codec, AAC audio',
+      android: 'Android: Up to 4K, AV1/VP9/H.264, Opus/AAC',
+      macos: 'macOS: Max 1080p, H.264 codec, AAC audio',
+      windows: 'Windows: Up to 4K, AV1/VP9/H.264, Opus/AAC',
+      linux: 'Linux: Up to 4K, AV1/VP9/H.264, Opus/AAC'
     };
 
-    // UI elements
-    const platformSelect = document.getElementById('platform');
-    const platformInfoDiv = document.getElementById('platformInfo');
-    const typeSelect = document.getElementById('type');
-    const formatSelect = document.getElementById('format');
-    const qualityGroup = document.getElementById('qualityGroup');
-    const qualitySelect = document.getElementById('quality');
-    const enableTrim = document.getElementById('enableTrim');
-    const trimFields = document.getElementById('trimFields');
-    const downloadBtn = document.getElementById('downloadBtn');
-    const statusDiv = document.getElementById('status');
-    const statusText = document.getElementById('statusText');
-    const progressBar = document.getElementById('progressBar');
-    const downloadLink = document.getElementById('downloadLink');
-
-    // Video formats
     const videoFormats = ['mp4', 'webm', 'mkv'];
     const audioFormats = ['mp3', 'm4a', 'wav', 'opus', 'flac'];
 
-    // Update platform info
-    platformSelect.addEventListener('change', () => {
-      const platform = platformSelect.value;
-      if (platform && platformInfo[platform]) {
-        platformInfoDiv.textContent = platformInfo[platform];
-        platformInfoDiv.style.display = 'block';
+    // Elements
+    const els = {
+      url: document.getElementById('url'),
+      platform: document.getElementById('platform'),
+      platformInfo: document.getElementById('platformInfo'),
+      type: document.getElementById('type'),
+      format: document.getElementById('format'),
+      quality: document.getElementById('quality'),
+      qualityGroup: document.getElementById('qualityGroup'),
+      bitrate: document.getElementById('bitrate'),
+      enableTrim: document.getElementById('enableTrim'),
+      trimFields: document.getElementById('trimFields'),
+      trimStart: document.getElementById('trimStart'),
+      trimEnd: document.getElementById('trimEnd'),
+      downloadBtn: document.getElementById('downloadBtn'),
+      status: document.getElementById('status'),
+      statusTitle: document.getElementById('statusTitle'),
+      statusInfo: document.getElementById('statusInfo'),
+      statusPhase: document.getElementById('statusPhase'),
+      statusPercent: document.getElementById('statusPercent'),
+      progressBar: document.getElementById('progressBar'),
+      detailProgress: document.getElementById('detailProgress'),
+      videoProgress: document.getElementById('videoProgress'),
+      audioProgress: document.getElementById('audioProgress'),
+      videoPercent: document.getElementById('videoPercent'),
+      audioPercent: document.getElementById('audioPercent'),
+      warningBox: document.getElementById('warningBox'),
+      errorBox: document.getElementById('errorBox'),
+      downloadLink: document.getElementById('downloadLink')
+    };
+
+    // Platform change
+    els.platform.addEventListener('change', () => {
+      const p = els.platform.value;
+      if (p && platformInfo[p]) {
+        els.platformInfo.textContent = platformInfo[p];
+        els.platformInfo.style.display = 'block';
       } else {
-        platformInfoDiv.style.display = 'none';
+        els.platformInfo.style.display = 'none';
       }
     });
 
-    // Update format options based on type
-    typeSelect.addEventListener('change', () => {
-      const isVideo = typeSelect.value === 'video';
-      formatSelect.innerHTML = '';
-
-      const formats = isVideo ? videoFormats : audioFormats;
-      formats.forEach(f => {
-        const opt = document.createElement('option');
-        opt.value = f;
-        opt.textContent = f.toUpperCase();
-        formatSelect.appendChild(opt);
+    // Type change
+    els.type.addEventListener('change', () => {
+      const isVideo = els.type.value === 'video';
+      els.format.innerHTML = '';
+      (isVideo ? videoFormats : audioFormats).forEach(f => {
+        els.format.innerHTML += `<option value="${f}">${f.toUpperCase()}</option>`;
       });
-
-      qualityGroup.classList.toggle('show', isVideo);
+      els.qualityGroup.classList.toggle('show', isVideo);
     });
 
-    // Toggle trim fields
-    enableTrim.addEventListener('change', () => {
-      trimFields.classList.toggle('show', enableTrim.checked);
+    // Trim toggle
+    els.enableTrim.addEventListener('change', () => {
+      els.trimFields.classList.toggle('show', els.enableTrim.checked);
     });
 
     // Init
-    typeSelect.dispatchEvent(new Event('change'));
+    els.type.dispatchEvent(new Event('change'));
 
-    // Download handler
-    downloadBtn.addEventListener('click', async () => {
-      const url = document.getElementById('url').value.trim();
+    // Format duration
+    function formatDuration(sec) {
+      const m = Math.floor(sec / 60);
+      const s = Math.floor(sec % 60);
+      return `${m}:${s.toString().padStart(2, '0')}`;
+    }
+
+    // Reset status UI
+    function resetStatus() {
+      els.progressBar.style.width = '0%';
+      els.progressBar.classList.remove('done');
+      els.statusPhase.textContent = 'Starting...';
+      els.statusPercent.textContent = '0%';
+      els.detailProgress.style.display = 'none';
+      els.videoProgress.style.width = '0%';
+      els.audioProgress.style.width = '0%';
+      els.videoPercent.textContent = '0%';
+      els.audioPercent.textContent = '0%';
+      els.warningBox.style.display = 'none';
+      els.errorBox.style.display = 'none';
+      els.downloadLink.innerHTML = '';
+    }
+
+    // Download click
+    els.downloadBtn.addEventListener('click', async () => {
+      const url = els.url.value.trim();
       if (!url) return alert('Please enter a YouTube URL');
 
-      // Build request
       const body = {
         url,
-        output: {
-          type: typeSelect.value,
-          format: formatSelect.value
-        },
-        audio: {
-          bitrate: document.getElementById('bitrate').value
-        }
+        output: { type: els.type.value, format: els.format.value },
+        audio: { bitrate: els.bitrate.value }
       };
 
-      // Add platform if selected
-      const platform = platformSelect.value;
-      if (platform) {
-        body.os = platform;
+      if (els.platform.value) body.os = els.platform.value;
+      if (els.type.value === 'video' && els.quality.value) {
+        body.output.quality = els.quality.value;
       }
-
-      if (typeSelect.value === 'video') {
-        const quality = document.getElementById('quality').value;
-        if (quality) body.output.quality = quality;
-      }
-
-      if (enableTrim.checked) {
+      if (els.enableTrim.checked) {
         body.trim = {
-          start: parseInt(document.getElementById('trimStart').value) || 0,
-          end: parseInt(document.getElementById('trimEnd').value) || 60
+          start: parseFloat(els.trimStart.value) || 0,
+          end: parseFloat(els.trimEnd.value) || 60
         };
       }
 
-      // Start download
-      downloadBtn.disabled = true;
-      statusDiv.classList.add('show');
-      statusText.textContent = 'Starting download...';
-      statusText.className = '';
-      progressBar.style.width = '0%';
-      downloadLink.innerHTML = '';
+      els.downloadBtn.disabled = true;
+      els.status.classList.add('show');
+      resetStatus();
 
       try {
         const res = await fetch(`${API}/api/download`, {
@@ -239,82 +301,86 @@
         });
 
         const data = await res.json();
-
-        if (!res.ok) {
-          throw new Error(data.error || 'Download failed');
-        }
+        if (!res.ok) throw new Error(data.error || 'Request failed');
 
         currentJobId = data.id;
-        let statusHtml = `<strong>${data.title}</strong><br>Duration: ${Math.floor(data.duration / 60)}:${String(data.duration % 60).padStart(2, '0')}`;
+        els.statusTitle.textContent = data.title;
+        els.statusInfo.textContent = `Duration: ${formatDuration(data.duration)}` +
+          (data.selectedQuality ? ` | Quality: ${data.selectedQuality}` : '');
 
-        // Show quality info
-        if (data.selectedQuality) {
-          statusHtml += `<br>Quality: ${data.selectedQuality}`;
-        }
-
-        // Show warning if quality changed
         if (data.qualityChanged && data.qualityChangeReason) {
-          statusHtml += `<br><span class="warning">${data.qualityChangeReason}</span>`;
+          els.warningBox.textContent = data.qualityChangeReason;
+          els.warningBox.style.display = 'block';
         }
 
-        statusText.innerHTML = statusHtml;
-
-        // Start polling
         pollInterval = setInterval(checkStatus, 1000);
-
       } catch (err) {
-        statusText.textContent = err.message;
-        statusText.className = 'error';
-        downloadBtn.disabled = false;
+        els.errorBox.textContent = err.message;
+        els.errorBox.style.display = 'block';
+        els.downloadBtn.disabled = false;
       }
     });
 
+    // Check status
     async function checkStatus() {
       if (!currentJobId) return;
 
       try {
         const res = await fetch(`${API}/api/status/${currentJobId}`);
         const data = await res.json();
-
-        if (!res.ok) {
-          throw new Error(data.error);
-        }
+        if (!res.ok) throw new Error(data.error);
 
         // Update progress
-        progressBar.style.width = `${data.progress}%`;
+        els.progressBar.style.width = `${data.progress}%`;
+        els.statusPercent.textContent = `${data.progress}%`;
 
-        if (data.status === 'downloading') {
-          const currentText = statusText.innerHTML.split('<br>Downloading')[0];
-          statusText.innerHTML = currentText + `<br>Downloading... ${data.progress}%`;
-        } else if (data.status === 'processing') {
-          const currentText = statusText.innerHTML.split('<br>Downloading')[0].split('<br>Processing')[0];
-          statusText.innerHTML = currentText + `<br>Processing with FFmpeg...`;
-        } else if (data.status === 'done') {
-          clearInterval(pollInterval);
-          progressBar.style.width = '100%';
-          statusText.className = 'success';
-          const filename = data.downloadUrl.split('/').pop();
-          downloadLink.innerHTML = `<br><a href="${data.downloadUrl}" download>Download ${filename}</a>`;
-          downloadBtn.disabled = false;
-        } else if (data.status === 'error') {
-          clearInterval(pollInterval);
-          statusText.className = 'error';
-          const currentText = statusText.innerHTML.split('<br>Error')[0];
-          statusText.innerHTML = currentText + `<br>Error: ${data.error}`;
-          downloadBtn.disabled = false;
+        // Show detail progress for video downloads
+        if (data.detail && (data.detail.video !== undefined || data.detail.audio !== undefined)) {
+          els.detailProgress.style.display = 'flex';
+          if (data.detail.video !== undefined) {
+            els.videoProgress.style.width = `${data.detail.video}%`;
+            els.videoPercent.textContent = `${data.detail.video}%`;
+          }
+          if (data.detail.audio !== undefined) {
+            els.audioProgress.style.width = `${data.detail.audio}%`;
+            els.audioPercent.textContent = `${data.detail.audio}%`;
+          }
         }
 
+        // Status phases
+        if (data.status === 'downloading') {
+          els.statusPhase.textContent = 'Downloading...';
+        } else if (data.status === 'processing') {
+          els.statusPhase.textContent = 'Processing (FFmpeg)...';
+        } else if (data.status === 'done') {
+          clearInterval(pollInterval);
+          els.progressBar.style.width = '100%';
+          els.progressBar.classList.add('done');
+          els.statusPhase.textContent = 'Complete!';
+          els.statusPercent.textContent = '100%';
+
+          const filename = data.downloadUrl.split('/').pop();
+          els.downloadLink.innerHTML = `<a href="${data.downloadUrl}" download>
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+            </svg>
+            Download ${filename}
+          </a>`;
+          els.downloadBtn.disabled = false;
+        } else if (data.status === 'error') {
+          clearInterval(pollInterval);
+          els.statusPhase.textContent = 'Error';
+          els.errorBox.textContent = data.error;
+          els.errorBox.style.display = 'block';
+          els.downloadBtn.disabled = false;
+        }
       } catch (err) {
         clearInterval(pollInterval);
-        statusText.textContent = err.message;
-        statusText.className = 'error';
-        downloadBtn.disabled = false;
+        els.errorBox.textContent = err.message;
+        els.errorBox.style.display = 'block';
+        els.downloadBtn.disabled = false;
       }
     }
   </script>
-  <script>(function(s){s.dataset.zone='10432520',s.src='https://al5sm.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
-  <script>(function(s){s.dataset.zone='10432487',s.src='https://al5sm.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
-<script async="async" data-cfasync="false" src="https://pl28397916.effectivegatecpm.com/fdbae8d21c975b8ab784dbe266018803/invoke.js"></script>
-<div id="container-fdbae8d21c975b8ab784dbe266018803"></div>
 </body>
 </html>
