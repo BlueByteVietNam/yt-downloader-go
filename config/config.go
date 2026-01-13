@@ -49,7 +49,7 @@ const (
 	// Stream rate limit (bytes per second)
 	// 0 = unlimited, otherwise limits FFmpeg output read speed
 	// This creates backpressure to prevent FFmpeg from processing faster than needed
-	StreamRateLimit = 5 * 1024 * 1024 // 5MB/s
+	StreamRateLimit = 1 * 1024 * 1024 // 1MB/s
 )
 
 // Download domains (random selection for load balancing)
