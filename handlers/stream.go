@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"time"
 	"yt-downloader-go/config"
 	"yt-downloader-go/models"
 	"yt-downloader-go/utils"
@@ -235,7 +236,7 @@ func runFFmpegStream(c *fiber.Ctx, args []string, jobID string) error {
 		})
 	}
 
-	// Stream FFmpeg output to client
+	// Stream FFmpeg output to client with rate limiting
 	c.Context().SetBodyStreamWriter(func(w *bufio.Writer) {
 		defer func() {
 			stdout.Close()
@@ -244,6 +245,17 @@ func runFFmpegStream(c *fiber.Ctx, args []string, jobID string) error {
 		}()
 
 		buf := make([]byte, 64*1024) // 64KB buffer
+		rateLimit := config.StreamRateLimit
+
+		// Rate limiting variables
+		var startTime time.Time
+		var totalBytes int64
+
+		if rateLimit > 0 {
+			startTime = time.Now()
+			log.Printf("[Stream %s] Rate limit: %d bytes/s\n", jobID, rateLimit)
+		}
+
 		for {
 			n, err := stdout.Read(buf)
 			if n > 0 {
@@ -253,6 +265,20 @@ func runFFmpegStream(c *fiber.Ctx, args []string, jobID string) error {
 					return
 				}
 				w.Flush()
+
+				// Apply rate limiting
+				if rateLimit > 0 {
+					totalBytes += int64(n)
+
+					// Calculate expected duration based on bytes sent
+					expectedDuration := time.Duration(totalBytes) * time.Second / time.Duration(rateLimit)
+					actualDuration := time.Since(startTime)
+
+					// Sleep if we're sending faster than the rate limit
+					if expectedDuration > actualDuration {
+						time.Sleep(expectedDuration - actualDuration)
+					}
+				}
 			}
 			if err != nil {
 				if err != io.EOF {
