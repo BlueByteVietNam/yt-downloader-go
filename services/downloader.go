@@ -213,7 +213,6 @@ func fetchRange(ctx context.Context, downloadURL string, start, end int64, chunk
 	req.Header.Set("Origin", "https://www.youtube.com")
 	req.Header.Set("Referer", "https://www.youtube.com/")
 
-	// New client per request = new random IPv6
 	client := config.NewWARPClient(config.ChunkTimeout)
 	resp, err := client.Do(req)
 	if err != nil {
