@@ -2,10 +2,11 @@ package config
 
 import (
 	"context"
-	"crypto/rand"
 	"net"
 	"net/http"
 	"time"
+
+	"golang.org/x/net/proxy"
 )
 
 const (
@@ -145,35 +146,52 @@ var MimeToExt = map[string]string{
 	"audio/x-wav": "wav",
 }
 
-// IPv6 rotation config - 2a01:4f8:a0:61c5::/64
-var IPv6Prefix = [8]byte{0x2a, 0x01, 0x04, 0xf8, 0x00, 0xa0, 0x61, 0xc5}
+// WARP Proxy config
+const WARPProxyAddr = "127.0.0.1:1111"
 
-// RandomIPv6 generates a random IPv6 address from the /64 subnet
-func RandomIPv6() net.IP {
-	ip := make([]byte, 16)
-	copy(ip[:8], IPv6Prefix[:])
-	rand.Read(ip[8:]) // Random 64 bits
-	return ip
-}
-
-// NewIPv6Client creates an HTTP client with a random IPv6 source address
-func NewIPv6Client(timeout time.Duration) *http.Client {
-	localAddr := &net.TCPAddr{IP: RandomIPv6()}
-
+// NewWARPClient creates an HTTP client that uses WARP SOCKS5 proxy
+func NewWARPClient(timeout time.Duration) *http.Client {
 	return &http.Client{
 		Transport: &http.Transport{
 			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				dialer := &net.Dialer{
-					LocalAddr: localAddr,
-					Timeout:   10 * time.Second,
+				dialer, err := proxy.SOCKS5("tcp", WARPProxyAddr, nil, proxy.Direct)
+				if err != nil {
+					return nil, err
 				}
-				return dialer.DialContext(ctx, "tcp6", addr)
+				return dialer.Dial(network, addr)
 			},
 			DisableKeepAlives: true,
 		},
 		Timeout: timeout,
 	}
 }
+
+// --- IPv6 rotation (commented out, replaced by WARP) ---
+// var IPv6Prefix = [8]byte{0x2a, 0x01, 0x04, 0xf8, 0x00, 0xa0, 0x61, 0xc5}
+//
+// func RandomIPv6() net.IP {
+// 	ip := make([]byte, 16)
+// 	copy(ip[:8], IPv6Prefix[:])
+// 	rand.Read(ip[8:])
+// 	return ip
+// }
+//
+// func NewIPv6Client(timeout time.Duration) *http.Client {
+// 	localAddr := &net.TCPAddr{IP: RandomIPv6()}
+// 	return &http.Client{
+// 		Transport: &http.Transport{
+// 			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+// 				dialer := &net.Dialer{
+// 					LocalAddr: localAddr,
+// 					Timeout:   10 * time.Second,
+// 				}
+// 				return dialer.DialContext(ctx, "tcp6", addr)
+// 			},
+// 			DisableKeepAlives: true,
+// 		},
+// 		Timeout: timeout,
+// 	}
+// }
 
 // HTTP Clients
 var ExtractClient *http.Client

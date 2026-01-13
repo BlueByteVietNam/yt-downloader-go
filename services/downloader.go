@@ -214,7 +214,7 @@ func fetchRange(ctx context.Context, downloadURL string, start, end int64, chunk
 	req.Header.Set("Referer", "https://www.youtube.com/")
 
 	// New client per request = new random IPv6
-	client := config.NewIPv6Client(config.ChunkTimeout)
+	client := config.NewWARPClient(config.ChunkTimeout)
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
@@ -240,14 +240,14 @@ func fetchRange(ctx context.Context, downloadURL string, start, end int64, chunk
 
 // DownloadFile is a simpler download function for small files
 func DownloadFile(ctx context.Context, downloadURL string, destPath string) error {
-	req, err := http.NewRequestWithConưtext(ctx, "GET", downloadURL, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", downloadURL, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
 
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
 
-	client := config.NewIPv6Client(config.ChunkTimeout)
+	client := config.NewWARPClient(config.ChunkTimeout)
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("request failed: %w", err)
