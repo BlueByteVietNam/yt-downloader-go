@@ -46,6 +46,14 @@ const (
 	MaxTrimDuration = 24 * time.Hour
 )
 
+// Download domains (random selection for load balancing)
+var DownloadDomains = []string{
+	"https://api.ytconvert.org",
+	// Add more domains here for load balancing
+	// "https://api2.ytconvert.org",
+	// "https://cdn.ytconvert.org",
+}
+
 // Supported formats
 var (
 	VideoFormats = []string{"mp4", "webm", "mkv"}

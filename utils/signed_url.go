@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"math/rand"
 	"strconv"
 	"time"
 	"yt-downloader-go/config"
@@ -14,7 +15,17 @@ import (
 func GenerateSignedURL(jobID, filename string) string {
 	expires := time.Now().Add(config.SignedURLExpiration).Unix()
 	token := generateToken(jobID, filename, expires)
-	return fmt.Sprintf("/files/%s/%s?token=%s&expires=%d", jobID, filename, token, expires)
+	domain := getRandomDomain()
+	return fmt.Sprintf("%s/files/%s/%s?token=%s&expires=%d", domain, jobID, filename, token, expires)
+}
+
+// getRandomDomain returns a random domain from the list
+func getRandomDomain() string {
+	domains := config.DownloadDomains
+	if len(domains) == 0 {
+		return ""
+	}
+	return domains[rand.Intn(len(domains))]
 }
 
 // ValidateSignedURL checks if the token is valid and not expired
