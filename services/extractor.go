@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"slices"
 	"sort"
 	"strings"
@@ -16,7 +15,7 @@ import (
 
 // Extract fetches video metadata from YouTube Extract API
 func Extract(videoID string) (*models.ExtractResponse, error) {
-	apiURL := fmt.Sprintf("%s/%s?proxy=%s", config.ExtractAPIBase, videoID, url.QueryEscape(config.ExtractProxyURL))
+	apiURL := fmt.Sprintf("%s/%s", config.ExtractAPIBase, videoID)
 
 	req, err := http.NewRequest("GET", apiURL, nil)
 	if err != nil {

@@ -23,8 +23,8 @@ const (
 	RetryDelay   = 100 * time.Millisecond
 	ChunkTimeout = 10 * time.Second
 
-	// Proxy (for Extract API)
-	ExtractProxyURL = "http://64.176.170.104:21589"
+	// Proxy (for Extract API) - now using WARP, keeping for reference
+	// ExtractProxyURL = "http://64.176.170.104:21589"
 
 	// Extract API
 	ExtractAPIBase    = "http://168.119.14.32:8300/api/youtube/video"
@@ -197,8 +197,6 @@ func NewWARPClient(timeout time.Duration) *http.Client {
 var ExtractClient *http.Client
 
 func init() {
-	// Extract API client (proxy passed as query parameter, not HTTP transport)
-	ExtractClient = &http.Client{
-		Timeout: ExtractAPITimeout,
-	}
+	// Extract API client using WARP proxy
+	ExtractClient = NewWARPClient(ExtractAPITimeout)
 }
