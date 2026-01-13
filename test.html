@@ -29,6 +29,15 @@
     .progress { height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; }
     .progress-bar { height: 100%; background: #3b82f6; transition: width 0.3s ease; border-radius: 4px; }
     .progress-bar.done { background: #22c55e; }
+    .progress-bar.merging {
+      background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 50%, #3b82f6 100%);
+      background-size: 200% 100%;
+      animation: merging 1.5s ease-in-out infinite;
+    }
+    @keyframes merging {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
 
     .detail-progress { margin-top: 12px; display: flex; gap: 16px; font-size: 0.85rem; }
     .detail-item { display: flex; align-items: center; gap: 6px; color: #64748b; }
@@ -254,7 +263,7 @@
     // Reset status UI
     function resetStatus() {
       els.progressBar.style.width = '0%';
-      els.progressBar.classList.remove('done');
+      els.progressBar.classList.remove('done', 'merging');
       els.statusPhase.textContent = 'Starting...';
       els.statusPercent.textContent = '0%';
       els.detailProgress.style.display = 'none';
@@ -351,10 +360,13 @@
         if (data.status === 'downloading') {
           els.statusPhase.textContent = 'Downloading...';
         } else if (data.status === 'processing') {
-          els.statusPhase.textContent = 'Processing (FFmpeg)...';
+          els.statusPhase.textContent = 'Merging...';
+          els.detailProgress.style.display = 'none';
+          els.progressBar.classList.add('merging');
         } else if (data.status === 'done') {
           clearInterval(pollInterval);
           els.progressBar.style.width = '100%';
+          els.progressBar.classList.remove('merging');
           els.progressBar.classList.add('done');
           els.statusPhase.textContent = 'Complete!';
           els.statusPercent.textContent = '100%';

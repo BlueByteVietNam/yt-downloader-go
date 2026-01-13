@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"yt-downloader-go/models"
 	"yt-downloader-go/utils"
 
@@ -47,7 +46,7 @@ func HandleStatus(c *fiber.Ctx) error {
 
 	if meta.Status == "done" {
 		response.Progress = 100
-		response.DownloadURL = fmt.Sprintf("/files/%s/%s", jobID, meta.Output)
+		response.DownloadURL = utils.GenerateSignedURL(jobID, meta.Output)
 	}
 
 	if meta.Status == "error" {

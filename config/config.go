@@ -38,6 +38,10 @@ const (
 	JobIDLength = 21
 	JobIDRegex  = `^[a-zA-Z0-9_-]{21}$`
 
+	// Signed URL
+	SignedURLSecret     = "18072001aA@"
+	SignedURLExpiration = 1 * time.Hour
+
 	// Limits
 	MaxTrimDuration = 24 * time.Hour
 )

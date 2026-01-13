@@ -16,6 +16,8 @@ import (
 func HandleFiles(c *fiber.Ctx) error {
 	jobID := c.Params("id")
 	filename := c.Params("filename")
+	token := c.Query("token")
+	expiresStr := c.Query("expires")
 
 	// Validate job ID
 	if !utils.ValidateJobID(jobID) {
@@ -28,6 +30,26 @@ func HandleFiles(c *fiber.Ctx) error {
 	if !utils.ValidateFilename(filename) {
 		return c.Status(fiber.StatusBadRequest).JSON(models.ErrorResponse{
 			Error: "Invalid filename",
+		})
+	}
+
+	// Validate signed URL
+	if token == "" || expiresStr == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(models.ErrorResponse{
+			Error: "Missing token or expires parameter",
+		})
+	}
+
+	expires, err := utils.ParseExpires(expiresStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(models.ErrorResponse{
+			Error: "Invalid expires parameter",
+		})
+	}
+
+	if !utils.ValidateSignedURL(jobID, filename, token, expires) {
+		return c.Status(fiber.StatusForbidden).JSON(models.ErrorResponse{
+			Error: "Invalid or expired download link",
 		})
 	}
 
