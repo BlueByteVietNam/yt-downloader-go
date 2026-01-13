@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"net/http"
+	"sync"
 	"time"
 
 	"golang.org/x/net/proxy"
@@ -21,7 +22,8 @@ const (
 	ChunkSize    = 10_000_000 // 10MB
 	MaxRetries   = 3
 	RetryDelay   = 100 * time.Millisecond
-	ChunkTimeout = 10 * time.Second
+	ChunkTimeout = 30 * time.Second
+	BufferSize   = 64 * 1024 // 64KB - optimal for io.CopyBuffer
 
 	// Extract API
 	ExtractAPIBase    = "http://168.119.14.32:8300/api/youtube/video"
@@ -146,14 +148,22 @@ var MimeToExt = map[string]string{
 // WARP Proxy config
 const WARPProxyAddr = "127.0.0.1:1111"
 
+// BufferPool for reusing buffers (reduces GC pressure)
+var BufferPool = sync.Pool{
+	New: func() interface{} {
+		buf := make([]byte, BufferSize)
+		return &buf
+	},
+}
+
 // HTTP Clients (reuse connections via pooling)
 var (
 	ExtractClient  *http.Client
 	DownloadClient *http.Client
 )
 
-// Shared WARP transport with connection pooling
-var warpTransport = &http.Transport{
+// Transport for Extract API
+var extractTransport = &http.Transport{
 	DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 		dialer, err := proxy.SOCKS5("tcp", WARPProxyAddr, nil, proxy.Direct)
 		if err != nil {
@@ -166,13 +176,28 @@ var warpTransport = &http.Transport{
 	IdleConnTimeout:     90 * time.Second,
 }
 
+// Transport for Download (gzip disabled for raw streaming)
+var downloadTransport = &http.Transport{
+	DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+		dialer, err := proxy.SOCKS5("tcp", WARPProxyAddr, nil, proxy.Direct)
+		if err != nil {
+			return nil, err
+		}
+		return dialer.Dial(network, addr)
+	},
+	MaxIdleConns:        100,
+	MaxIdleConnsPerHost: 10,
+	IdleConnTimeout:     90 * time.Second,
+	DisableCompression:  true, // No gzip for downloads - save CPU
+}
+
 func init() {
 	ExtractClient = &http.Client{
-		Transport: warpTransport,
+		Transport: extractTransport,
 		Timeout:   ExtractAPITimeout,
 	}
 	DownloadClient = &http.Client{
-		Transport: warpTransport,
+		Transport: downloadTransport,
 		Timeout:   ChunkTimeout,
 	}
 }

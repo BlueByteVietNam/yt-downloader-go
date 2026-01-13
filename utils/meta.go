@@ -100,6 +100,49 @@ func GetFileSize(path string) int64 {
 	return info.Size()
 }
 
+// getDownloadedSize calculates total downloaded bytes for a file
+// Checks: final file, tmp file, or chunks directory
+func getDownloadedSize(jobDir, fileName string, expectedSize int64) int64 {
+	basePath := filepath.Join(jobDir, fileName)
+
+	// Check if final file exists
+	if size := GetFileSize(basePath); size > 0 {
+		return expectedSize
+	}
+
+	// Check if single tmp file exists (small file download)
+	if size := GetFileSize(basePath + ".tmp"); size > 0 {
+		return size
+	}
+
+	// Check chunks directory (large file download)
+	chunksDir := basePath + ".chunks"
+	info, err := os.Stat(chunksDir)
+	if err != nil || !info.IsDir() {
+		return 0
+	}
+
+	// Sum all chunk file sizes
+	var total int64
+	entries, err := os.ReadDir(chunksDir)
+	if err != nil {
+		return 0
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		fileInfo, err := entry.Info()
+		if err != nil {
+			continue
+		}
+		total += fileInfo.Size()
+	}
+
+	return total
+}
+
 // CalculateProgress calculates download progress from file sizes
 func CalculateProgress(meta *models.Meta) (int, *models.ProgressDetail) {
 	if meta.Status == "done" {
@@ -117,21 +160,8 @@ func CalculateProgress(meta *models.Meta) (int, *models.ProgressDetail) {
 
 	if meta.OutputType == "video" && meta.Files.Video != nil && meta.Files.Audio != nil {
 		// Video + Audio download
-		videoTmp := filepath.Join(jobDir, meta.Files.Video.Name+".tmp")
-		audioTmp := filepath.Join(jobDir, meta.Files.Audio.Name+".tmp")
-
-		videoSize := GetFileSize(videoTmp)
-		audioSize := GetFileSize(audioTmp)
-
-		// Check if finished files exist
-		videoFinal := filepath.Join(jobDir, meta.Files.Video.Name)
-		audioFinal := filepath.Join(jobDir, meta.Files.Audio.Name)
-		if GetFileSize(videoFinal) > 0 {
-			videoSize = meta.Files.Video.Size
-		}
-		if GetFileSize(audioFinal) > 0 {
-			audioSize = meta.Files.Audio.Size
-		}
+		videoSize := getDownloadedSize(jobDir, meta.Files.Video.Name, meta.Files.Video.Size)
+		audioSize := getDownloadedSize(jobDir, meta.Files.Audio.Name, meta.Files.Audio.Size)
 
 		videoProgress := 0
 		audioProgress := 0
@@ -150,13 +180,7 @@ func CalculateProgress(meta *models.Meta) (int, *models.ProgressDetail) {
 		return min(progress, 80), detail
 	} else if meta.Files.Audio != nil {
 		// Audio only
-		audioTmp := filepath.Join(jobDir, meta.Files.Audio.Name+".tmp")
-		audioSize := GetFileSize(audioTmp)
-
-		audioFinal := filepath.Join(jobDir, meta.Files.Audio.Name)
-		if GetFileSize(audioFinal) > 0 {
-			audioSize = meta.Files.Audio.Size
-		}
+		audioSize := getDownloadedSize(jobDir, meta.Files.Audio.Name, meta.Files.Audio.Size)
 
 		audioProgress := 0
 		if meta.Files.Audio.Size > 0 {
