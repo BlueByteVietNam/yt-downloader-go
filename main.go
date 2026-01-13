@@ -57,6 +57,9 @@ func main() {
 	// File serving
 	app.Get("/files/:id/:filename", handlers.HandleFiles)
 
+	// Stream serving (FFmpeg pipe)
+	app.Get("/stream/:id", handlers.HandleStream)
+
 	// Health check
 	app.Get("/health", handlers.HandleHealth)
 

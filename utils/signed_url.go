@@ -19,6 +19,31 @@ func GenerateSignedURL(jobID, filename string) string {
 	return fmt.Sprintf("%s/files/%s/%s?token=%s&expires=%d", domain, jobID, filename, token, expires)
 }
 
+// GenerateStreamURL creates a signed stream URL
+func GenerateStreamURL(jobID string) string {
+	expires := time.Now().Add(config.SignedURLExpiration).Unix()
+	token := generateStreamToken(jobID, expires)
+	domain := getRandomDomain()
+	return fmt.Sprintf("%s/stream/%s?token=%s&expires=%d", domain, jobID, token, expires)
+}
+
+// ValidateStreamURL checks if the stream token is valid and not expired
+func ValidateStreamURL(jobID, token string, expires int64) bool {
+	if time.Now().Unix() > expires {
+		return false
+	}
+	expectedToken := generateStreamToken(jobID, expires)
+	return hmac.Equal([]byte(token), []byte(expectedToken))
+}
+
+// generateStreamToken creates HMAC-SHA256 token for stream URLs
+func generateStreamToken(jobID string, expires int64) string {
+	data := fmt.Sprintf("stream:%s:%d", jobID, expires)
+	h := hmac.New(sha256.New, []byte(config.SignedURLSecret))
+	h.Write([]byte(data))
+	return hex.EncodeToString(h.Sum(nil))
+}
+
 // getRandomDomain returns a random domain from the list
 func getRandomDomain() string {
 	domains := config.DownloadDomains

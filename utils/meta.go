@@ -75,6 +75,17 @@ func UpdateMetaOutput(jobID string, output string) error {
 	return WriteMeta(jobID, meta)
 }
 
+// UpdateMetaStreamOnly marks the job as ready for streaming (no merge)
+func UpdateMetaStreamOnly(jobID string) error {
+	meta, err := ReadMeta(jobID)
+	if err != nil {
+		return err
+	}
+	meta.Status = "ready"
+	meta.StreamOnly = true
+	return WriteMeta(jobID, meta)
+}
+
 // CreateJobDir creates the job directory
 func CreateJobDir(jobID string) error {
 	return os.MkdirAll(GetJobDir(jobID), 0755)
@@ -136,7 +147,7 @@ func getDownloadedSize(jobDir, fileName string, expectedSize int64) int64 {
 
 // CalculateProgress calculates download progress from file sizes
 func CalculateProgress(meta *models.Meta) (int, *models.ProgressDetail) {
-	if meta.Status == "done" {
+	if meta.Status == "done" || meta.Status == "ready" {
 		return 100, nil
 	}
 	if meta.Status == "error" {

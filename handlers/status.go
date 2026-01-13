@@ -44,8 +44,14 @@ func HandleStatus(c *fiber.Ctx) error {
 		Duration: meta.Duration,
 	}
 
-	if meta.Status == "done" {
+	// StreamURL is available when ready or done
+	if meta.Status == "ready" || meta.Status == "done" {
 		response.Progress = 100
+		response.StreamURL = utils.GenerateStreamURL(jobID)
+	}
+
+	// DownloadURL is only available when merged (done status)
+	if meta.Status == "done" && meta.Output != "" {
 		response.DownloadURL = utils.GenerateSignedURL(jobID, meta.Output)
 	}
 

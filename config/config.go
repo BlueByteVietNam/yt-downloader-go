@@ -43,7 +43,8 @@ const (
 	SignedURLExpiration = 1 * time.Hour
 
 	// Limits
-	MaxTrimDuration = 24 * time.Hour
+	MaxTrimDuration  = 24 * time.Hour
+	MaxMergeDuration = 3600.0 // 1 hour in seconds - videos longer than this will be stream-only
 )
 
 // Download domains (random selection for load balancing)

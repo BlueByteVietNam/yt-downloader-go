@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"log"
+	"path/filepath"
 	"time"
 	"yt-downloader-go/config"
 	"yt-downloader-go/models"
@@ -219,7 +220,16 @@ func processJob(jobID string, meta *models.Meta, videoSelection *models.VideoSel
 		}
 	}
 
-	log.Printf("[Job %s] Download complete, processing...\n", jobID)
+	log.Printf("[Job %s] Download complete\n", jobID)
+
+	// Check if we should merge or stream-only
+	if !shouldMerge(meta) {
+		log.Printf("[Job %s] Duration %.0fs > %ds, marking as stream-only\n", jobID, meta.Duration, int(config.MaxMergeDuration))
+		utils.UpdateMetaStreamOnly(jobID)
+		return
+	}
+
+	log.Printf("[Job %s] Processing...\n", jobID)
 	utils.UpdateMetaStatus(jobID, "processing")
 
 	// Process with FFmpeg
@@ -271,4 +281,48 @@ func processJob(jobID string, meta *models.Meta, videoSelection *models.VideoSel
 	utils.UpdateMetaOutput(jobID, outputFile)
 
 	log.Printf("[Job %s] Completed: %s\n", jobID, outputFile)
+}
+
+// shouldMerge determines if the job should be pre-merged or stream-only
+// Videos/audio longer than MaxMergeDuration will be stream-only to protect server resources
+func shouldMerge(meta *models.Meta) bool {
+	// If duration exceeds limit, don't merge
+	if meta.Duration > config.MaxMergeDuration {
+		return false
+	}
+
+	// If trim is requested but within limit, we need to merge
+	// (streaming with trim is more complex, so we merge for trimmed content)
+	if meta.Trim != nil {
+		return true
+	}
+
+	return true
+}
+
+// needsTranscode checks if audio format requires transcoding
+func needsTranscode(meta *models.Meta) bool {
+	if meta.Files.Audio == nil {
+		return false
+	}
+
+	inputExt := filepath.Ext(meta.Files.Audio.Name)
+	if len(inputExt) > 0 && inputExt[0] == '.' {
+		inputExt = inputExt[1:]
+	}
+
+	outputFormat := meta.Format
+
+	// Same format or compatible containers don't need transcoding
+	if inputExt == outputFormat {
+		return false
+	}
+	if (inputExt == "m4a" || inputExt == "mp4") && (outputFormat == "m4a" || outputFormat == "mp4") {
+		return false
+	}
+	if inputExt == "webm" && outputFormat == "opus" {
+		return false
+	}
+
+	return true
 }
