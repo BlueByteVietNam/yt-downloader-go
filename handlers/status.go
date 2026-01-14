@@ -8,6 +8,16 @@ import (
 )
 
 // HandleStatus handles GET /api/status/:id
+// @Summary Get job status
+// @Description Check the status and progress of a download job
+// @Tags status
+// @Produce json
+// @Param id path string true "Job ID"
+// @Success 200 {object} models.StatusResponse
+// @Failure 400 {object} utils.ErrorResponse "Invalid job ID"
+// @Failure 404 {object} utils.ErrorResponse "Job not found"
+// @Failure 500 {object} utils.ErrorResponse "Server error"
+// @Router /api/status/{id} [get]
 func HandleStatus(c *fiber.Ctx) error {
 	jobID := c.Params("id")
 

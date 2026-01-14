@@ -8,6 +8,16 @@ import (
 )
 
 // HandleDeleteJob handles DELETE /api/jobs/:id
+// @Summary Delete job
+// @Description Delete a job and its associated files
+// @Tags jobs
+// @Produce json
+// @Param id path string true "Job ID"
+// @Success 200 {object} models.DeleteResponse
+// @Failure 400 {object} utils.ErrorResponse "Invalid job ID"
+// @Failure 404 {object} utils.ErrorResponse "Job not found"
+// @Failure 500 {object} utils.ErrorResponse "Delete failed"
+// @Router /api/jobs/{id} [delete]
 func HandleDeleteJob(c *fiber.Ctx) error {
 	jobID := c.Params("id")
 

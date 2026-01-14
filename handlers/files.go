@@ -13,6 +13,20 @@ import (
 )
 
 // HandleFiles handles GET /files/:id/:filename
+// @Summary Download file
+// @Description Download the merged output file
+// @Tags files
+// @Produce octet-stream
+// @Param id path string true "Job ID"
+// @Param filename path string true "Output filename"
+// @Param token query string true "Signed URL token"
+// @Param expires query integer true "Expiration timestamp"
+// @Success 200 {file} binary "Output file"
+// @Failure 400 {object} utils.ErrorResponse "Invalid parameters"
+// @Failure 401 {object} utils.ErrorResponse "Missing auth"
+// @Failure 403 {object} utils.ErrorResponse "Invalid token"
+// @Failure 404 {object} utils.ErrorResponse "Not found"
+// @Router /files/{id}/{filename} [get]
 func HandleFiles(c *fiber.Ctx) error {
 	jobID := c.Params("id")
 	filename := c.Params("filename")

@@ -26,6 +26,17 @@ func init() {
 }
 
 // HandleDownload handles POST /api/download
+// @Summary Create download job
+// @Description Create a new download job for a YouTube video or audio
+// @Tags download
+// @Accept json
+// @Produce json
+// @Param request body models.DownloadRequest true "Download request"
+// @Success 200 {object} models.DownloadResponse
+// @Failure 400 {object} utils.ErrorResponse "Validation error"
+// @Failure 404 {object} utils.ErrorResponse "No stream found"
+// @Failure 500 {object} utils.ErrorResponse "Server error"
+// @Router /api/download [post]
 func HandleDownload(c *fiber.Ctx) error {
 	var req models.DownloadRequest
 	if err := c.BodyParser(&req); err != nil {

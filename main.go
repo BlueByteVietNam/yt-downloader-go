@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 	"yt-downloader-go/config"
+	_ "yt-downloader-go/docs"
 	"yt-downloader-go/handlers"
 	"yt-downloader-go/utils"
 
@@ -14,7 +15,23 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
+	"github.com/gofiber/swagger"
 )
+
+// @title YT Downloader API
+// @version 2.0
+// @description API for downloading YouTube videos and audio
+// @termsOfService http://swagger.io/terms/
+
+// @contact.name API Support
+// @contact.email support@ytconvert.org
+
+// @license.name MIT
+// @license.url https://opensource.org/licenses/MIT
+
+// @host api.ytconvert.org
+// @BasePath /
+// @schemes https http
 
 func main() {
 	// Create storage directory
@@ -48,6 +65,9 @@ func main() {
 		AllowHeaders: "Content-Type,Accept",
 	}))
 
+	// Swagger docs
+	app.Get("/swagger/*", swagger.HandlerDefault)
+
 	// API routes
 	api := app.Group("/api")
 	api.Post("/download", handlers.HandleDownload)
@@ -78,6 +98,7 @@ func main() {
 	// Start server
 	addr := fmt.Sprintf(":%d", config.Port)
 	log.Printf("Starting server on http://localhost%s\n", addr)
+	log.Printf("Swagger docs: http://localhost%s/swagger/index.html\n", addr)
 
 	if err := app.Listen(addr); err != nil {
 		log.Fatalf("Failed to start server: %v", err)

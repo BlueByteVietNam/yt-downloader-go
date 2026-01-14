@@ -18,7 +18,21 @@ import (
 )
 
 // HandleStream handles GET /stream/:id
-// Streams video/audio using FFmpeg pipe (realtime remux/convert)
+// @Summary Stream video/audio
+// @Description Stream video/audio using FFmpeg pipe (realtime remux/convert)
+// @Tags stream
+// @Produce octet-stream
+// @Param id path string true "Job ID"
+// @Param token query string true "Signed URL token"
+// @Param expires query integer true "Expiration timestamp"
+// @Success 200 {file} binary "Media stream"
+// @Success 307 "Redirect to download URL"
+// @Failure 400 {object} utils.ErrorResponse "Invalid parameters"
+// @Failure 401 {object} utils.ErrorResponse "Missing auth"
+// @Failure 403 {object} utils.ErrorResponse "Invalid token"
+// @Failure 404 {object} utils.ErrorResponse "Not found"
+// @Failure 500 {object} utils.ErrorResponse "Stream failed"
+// @Router /stream/{id} [get]
 func HandleStream(c *fiber.Ctx) error {
 	jobID := c.Params("id")
 	token := c.Query("token")
