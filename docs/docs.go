@@ -588,9 +588,9 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "2.0",
-	Host:             "api.ytconvert.org",
+	Host:             "",
 	BasePath:         "/",
-	Schemes:          []string{"https", "http"},
+	Schemes:          []string{},
 	Title:            "YT Downloader API",
 	Description:      "API for downloading YouTube videos and audio",
 	InfoInstanceName: "swagger",

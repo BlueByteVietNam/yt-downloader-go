@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"os/signal"
 	"syscall"
@@ -51,6 +52,8 @@ func main() {
 		StrictRouting: false,
 		// Disable body limit for file streaming
 		BodyLimit: 0,
+		// Enable IPv6 (dual-stack)
+		Network: "tcp",
 	})
 
 	// Middleware
@@ -95,12 +98,18 @@ func main() {
 		}
 	}()
 
-	// Start server
+	// Start server (bind to IPv6 - also accepts IPv4 on dual-stack)
 	addr := fmt.Sprintf(":%d", config.Port)
-	log.Printf("Starting server on http://localhost%s\n", addr)
-	log.Printf("Swagger docs: http://localhost%s/swagger/index.html\n", addr)
+	log.Printf("Starting server on http://localhost:%d\n", config.Port)
+	log.Printf("Swagger docs: http://localhost:%d/swagger/index.html\n", config.Port)
 
-	if err := app.Listen(addr); err != nil {
+	// Create IPv6 listener (dual-stack: accepts both IPv4 and IPv6)
+	ln, err := net.Listen("tcp6", addr)
+	if err != nil {
+		log.Fatalf("Failed to create listener: %v", err)
+	}
+
+	if err := app.Listener(ln); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
 }
