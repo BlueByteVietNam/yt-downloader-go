@@ -50,8 +50,8 @@ definitions:
       duration:
         example: 213.5
         type: number
-      id:
-        example: V1StGXR8_Z5jdHi
+      statusUrl:
+        example: https://api.ytconvert.org/api/status/V1StGXR8_Z5jdHi?token=xxx&expires=xxx
         type: string
       needsReencode:
         example: false
@@ -264,6 +264,16 @@ paths:
         name: id
         required: true
         type: string
+      - description: Signed URL token
+        in: query
+        name: token
+        required: true
+        type: string
+      - description: Expiration timestamp
+        in: query
+        name: expires
+        required: true
+        type: integer
       produces:
       - application/json
       responses:
@@ -273,6 +283,14 @@ paths:
             $ref: '#/definitions/models.StatusResponse'
         "400":
           description: Invalid job ID
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "401":
+          description: Missing token or expires
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "403":
+          description: Invalid or expired token
           schema:
             $ref: '#/definitions/utils.ErrorResponse'
         "404":

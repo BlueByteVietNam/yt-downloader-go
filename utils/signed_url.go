@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"math/rand"
 	"strconv"
 	"time"
 	"yt-downloader-go/config"
@@ -15,16 +14,38 @@ import (
 func GenerateSignedURL(jobID, filename string) string {
 	expires := time.Now().Add(config.SignedURLExpiration).Unix()
 	token := generateToken(jobID, filename, expires)
-	domain := getRandomDomain()
-	return fmt.Sprintf("%s/files/%s/%s?token=%s&expires=%d", domain, jobID, filename, token, expires)
+	return fmt.Sprintf("%s/files/%s/%s?token=%s&expires=%d", config.BaseURL, jobID, filename, token, expires)
 }
 
 // GenerateStreamURL creates a signed stream URL
 func GenerateStreamURL(jobID string) string {
 	expires := time.Now().Add(config.SignedURLExpiration).Unix()
 	token := generateStreamToken(jobID, expires)
-	domain := getRandomDomain()
-	return fmt.Sprintf("%s/stream/%s?token=%s&expires=%d", domain, jobID, token, expires)
+	return fmt.Sprintf("%s/stream/%s?token=%s&expires=%d", config.BaseURL, jobID, token, expires)
+}
+
+// GenerateStatusURL creates a signed status URL
+func GenerateStatusURL(jobID string) string {
+	expires := time.Now().Add(config.SignedURLExpiration).Unix()
+	token := generateStatusToken(jobID, expires)
+	return fmt.Sprintf("%s/api/status/%s?token=%s&expires=%d", config.BaseURL, jobID, token, expires)
+}
+
+// ValidateStatusURL checks if the status token is valid and not expired
+func ValidateStatusURL(jobID, token string, expires int64) bool {
+	if time.Now().Unix() > expires {
+		return false
+	}
+	expectedToken := generateStatusToken(jobID, expires)
+	return hmac.Equal([]byte(token), []byte(expectedToken))
+}
+
+// generateStatusToken creates HMAC-SHA256 token for status URLs
+func generateStatusToken(jobID string, expires int64) string {
+	data := fmt.Sprintf("status:%s:%d", jobID, expires)
+	h := hmac.New(sha256.New, []byte(config.SignedURLSecret))
+	h.Write([]byte(data))
+	return hex.EncodeToString(h.Sum(nil))
 }
 
 // ValidateStreamURL checks if the stream token is valid and not expired
@@ -42,15 +63,6 @@ func generateStreamToken(jobID string, expires int64) string {
 	h := hmac.New(sha256.New, []byte(config.SignedURLSecret))
 	h.Write([]byte(data))
 	return hex.EncodeToString(h.Sum(nil))
-}
-
-// getRandomDomain returns a random domain from the list
-func getRandomDomain() string {
-	domains := config.DownloadDomains
-	if len(domains) == 0 {
-		return ""
-	}
-	return domains[rand.Intn(len(domains))]
 }
 
 // ValidateSignedURL checks if the token is valid and not expired

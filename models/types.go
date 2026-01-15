@@ -36,7 +36,7 @@ type TrimConfig struct {
 // DownloadResponse is returned when a job is created
 // @Description Response after creating a download job
 type DownloadResponse struct {
-	ID                  string  `json:"id" example:"V1StGXR8_Z5jdHi"`
+	StatusURL           string  `json:"statusUrl" example:"https://api.ytconvert.org/api/status/V1StGXR8_Z5jdHi?token=xxx&expires=xxx"`
 	Title               string  `json:"title" example:"Rick Astley - Never Gonna Give You Up"`
 	Duration            float64 `json:"duration" example:"213.5"`
 	RequestedQuality    string  `json:"requestedQuality,omitempty" example:"1080p"`

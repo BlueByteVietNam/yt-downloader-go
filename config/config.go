@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 
@@ -52,12 +53,15 @@ const (
 	StreamRateLimit = 1 * 1024 * 1024 // 1MB/s
 )
 
-// Download domains (random selection for load balancing)
-var DownloadDomains = []string{
-	"https://api.ytconvert.org",
-	// Add more domains here for load balancing
-	// "https://api2.ytconvert.org",
-	// "https://cdn.ytconvert.org",
+// Base URL for download links (required env)
+var BaseURL = mustGetEnv("BASE_URL")
+
+func mustGetEnv(key string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		panic("Required environment variable " + key + " is not set")
+	}
+	return value
 }
 
 // Supported formats

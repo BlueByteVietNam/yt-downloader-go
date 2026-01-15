@@ -137,6 +137,20 @@
                         "name": "id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Signed URL token",
+                        "name": "token",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Expiration timestamp",
+                        "name": "expires",
+                        "in": "query",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -148,6 +162,18 @@
                     },
                     "400": {
                         "description": "Invalid job ID",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Missing token or expires",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Invalid or expired token",
                         "schema": {
                             "$ref": "#/definitions/utils.ErrorResponse"
                         }
@@ -407,9 +433,9 @@
                     "type": "number",
                     "example": 213.5
                 },
-                "id": {
+                "statusUrl": {
                     "type": "string",
-                    "example": "V1StGXR8_Z5jdHi"
+                    "example": "https://api.ytconvert.org/api/status/V1StGXR8_Z5jdHi?token=xxx&expires=xxx"
                 },
                 "needsReencode": {
                     "type": "boolean",

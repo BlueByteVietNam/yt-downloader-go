@@ -146,9 +146,9 @@ func HandleDownload(c *fiber.Ctx) error {
 
 	// Build response
 	response := models.DownloadResponse{
-		ID:       jobID,
-		Title:    extractData.Title,
-		Duration: extractData.Duration,
+		StatusURL: utils.GenerateStatusURL(jobID),
+		Title:     extractData.Title,
+		Duration:  extractData.Duration,
 	}
 
 	if req.Output.Type == "video" && videoSelection != nil {

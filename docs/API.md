@@ -95,7 +95,7 @@ Create download job.
 
 ```json
 {
-  "id": "V1StGXR8_Z5jdHi",
+  "statusUrl": "https://api.ytconvert.org/api/status/V1StGXR8_Z5jdHi?token=xxx&expires=xxx",
   "title": "Video Title",
   "duration": 213.5,
   "requestedQuality": "1080p",
@@ -146,6 +146,13 @@ Create download job.
 ### GET /api/status/:id
 
 Check job status.
+
+#### Query Parameters
+
+| Param | Required | Description |
+|-------|----------|-------------|
+| `token` | Yes | Signed URL token |
+| `expires` | Yes | Expiration timestamp |
 
 #### Response
 
@@ -208,6 +215,22 @@ Check job status.
   "error": {
     "code": "INVALID_JOB_ID",
     "message": "Invalid job ID format"
+  }
+}
+
+// 401
+{
+  "error": {
+    "code": "UNAUTHORIZED",
+    "message": "Missing token or expires parameter"
+  }
+}
+
+// 403
+{
+  "error": {
+    "code": "FORBIDDEN",
+    "message": "Invalid or expired token"
   }
 }
 
@@ -366,7 +389,8 @@ Health check.
 ## Client Example
 
 ```javascript
-async function createJob(url) {
+async function download(url) {
+  // 1. Create job
   const res = await fetch('/api/download', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -382,11 +406,12 @@ async function createJob(url) {
     throw new Error(data.error.message);
   }
 
-  return data;
+  // 2. Poll status using statusUrl
+  pollStatus(data.statusUrl);
 }
 
-async function pollStatus(jobId) {
-  const res = await fetch(`/api/status/${jobId}`);
+async function pollStatus(statusUrl) {
+  const res = await fetch(statusUrl);
   const data = await res.json();
 
   if (!res.ok) {
@@ -399,7 +424,7 @@ async function pollStatus(jobId) {
     throw new Error(data.jobError);
   } else {
     // pending - continue polling
-    setTimeout(() => pollStatus(jobId), 1000);
+    setTimeout(() => pollStatus(statusUrl), 1000);
   }
 }
 ```

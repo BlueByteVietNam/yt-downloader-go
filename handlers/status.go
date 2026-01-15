@@ -13,17 +13,39 @@ import (
 // @Tags status
 // @Produce json
 // @Param id path string true "Job ID"
+// @Param token query string true "Signed URL token"
+// @Param expires query string true "Expiration timestamp"
 // @Success 200 {object} models.StatusResponse
 // @Failure 400 {object} utils.ErrorResponse "Invalid job ID"
+// @Failure 401 {object} utils.ErrorResponse "Missing token or expires"
+// @Failure 403 {object} utils.ErrorResponse "Invalid or expired token"
 // @Failure 404 {object} utils.ErrorResponse "Job not found"
 // @Failure 500 {object} utils.ErrorResponse "Server error"
 // @Router /api/status/{id} [get]
 func HandleStatus(c *fiber.Ctx) error {
 	jobID := c.Params("id")
+	token := c.Query("token")
+	expiresStr := c.Query("expires")
 
 	// Validate job ID
 	if !utils.ValidateJobID(jobID) {
 		return utils.BadRequest(c, utils.ErrInvalidJobID, "Invalid job ID format")
+	}
+
+	// Check token and expires
+	if token == "" || expiresStr == "" {
+		return utils.Unauthorized(c, "Missing token or expires parameter")
+	}
+
+	// Parse expires
+	expires, err := utils.ParseExpires(expiresStr)
+	if err != nil {
+		return utils.BadRequest(c, utils.ErrInvalidRequest, "Invalid expires format")
+	}
+
+	// Validate token
+	if !utils.ValidateStatusURL(jobID, token, expires) {
+		return utils.Forbidden(c, "Invalid or expired token")
 	}
 
 	// Check if job exists
