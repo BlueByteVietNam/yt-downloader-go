@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	_ "github.com/joho/godotenv/autoload" // Auto-load .env file
 	"golang.org/x/net/proxy"
 )
 
