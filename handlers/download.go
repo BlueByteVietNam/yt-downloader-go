@@ -216,7 +216,8 @@ func processJob(jobID string, meta *models.Meta, videoSelection *models.VideoSel
 
 	// Check if we should merge or stream-only
 	if !shouldMerge(meta) {
-		log.Printf("[Job %s] Duration %.0fs > %ds, marking as stream-only\n", jobID, meta.Duration, int(config.MaxMergeDuration))
+		log.Printf("[Job %s] Duration %.0fs exceeds limit, marking as stream-only (transcode=%v)\n",
+			jobID, meta.Duration, needsTranscode(meta))
 		utils.UpdateMetaStreamOnly(jobID)
 		return
 	}
@@ -275,24 +276,44 @@ func processJob(jobID string, meta *models.Meta, videoSelection *models.VideoSel
 }
 
 // shouldMerge determines if the job should be pre-merged or stream-only
-// Videos/audio longer than MaxMergeDuration will be stream-only to protect server resources
+// Strategy: minimize CPU usage
+// - Heavy tasks (transcode): threshold 15 minutes
+// - Light tasks (remux/copy): threshold 4 hours
 func shouldMerge(meta *models.Meta) bool {
-	// If duration exceeds limit, don't merge
-	if meta.Duration > config.MaxMergeDuration {
-		return false
-	}
+	const (
+		maxDurationTranscode = 15 * 60.0   // 15 minutes - heavy CPU (transcode)
+		maxDurationRemux     = 4 * 3600.0  // 4 hours - light CPU (remux/copy)
+	)
 
-	// If trim is requested but within limit, we need to merge
-	// (streaming with trim is more complex, so we merge for trimmed content)
-	if meta.Trim != nil {
+	// Check if this job needs transcoding (heavy CPU)
+	transcode := needsTranscode(meta)
+
+	if transcode {
+		return meta.Duration <= maxDurationTranscode
+	}
+	return meta.Duration <= maxDurationRemux
+}
+
+// needsTranscode checks if the job requires transcoding (heavy CPU)
+// Returns true for:
+// - Audio format conversion (e.g., webm→mp3)
+// - Video with accurate trim (requires re-encoding)
+func needsTranscode(meta *models.Meta) bool {
+	// Video with accurate trim needs re-encoding
+	if meta.OutputType == "video" && meta.Trim != nil && meta.Trim.Accurate {
 		return true
 	}
 
-	return true
+	// Audio: check if format conversion is needed
+	if meta.OutputType == "audio" {
+		return needsAudioTranscode(meta)
+	}
+
+	return false
 }
 
-// needsTranscode checks if audio format requires transcoding
-func needsTranscode(meta *models.Meta) bool {
+// needsAudioTranscode checks if audio format requires transcoding
+func needsAudioTranscode(meta *models.Meta) bool {
 	if meta.Files.Audio == nil {
 		return false
 	}
@@ -304,13 +325,15 @@ func needsTranscode(meta *models.Meta) bool {
 
 	outputFormat := meta.Format
 
-	// Same format or compatible containers don't need transcoding
+	// Same format: no transcode
 	if inputExt == outputFormat {
 		return false
 	}
+	// m4a/mp4 compatible: no transcode
 	if (inputExt == "m4a" || inputExt == "mp4") && (outputFormat == "m4a" || outputFormat == "mp4") {
 		return false
 	}
+	// webm to opus: no transcode (YouTube webm contains Opus)
 	if inputExt == "webm" && outputFormat == "opus" {
 		return false
 	}

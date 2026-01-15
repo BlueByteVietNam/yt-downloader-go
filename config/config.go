@@ -44,8 +44,7 @@ const (
 	SignedURLExpiration = 1 * time.Hour
 
 	// Limits
-	MaxTrimDuration  = 24 * time.Hour
-	MaxMergeDuration = 3600.0 // 1 hour in seconds - videos longer than this will be stream-only
+	MaxTrimDuration = 24 * time.Hour
 
 	// Stream rate limit (bytes per second)
 	// 0 = unlimited, otherwise limits FFmpeg output read speed

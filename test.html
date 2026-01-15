@@ -169,8 +169,8 @@
   </div>
 
   <script>
-    const API = 'https://ovh-dl1.ytconvert.org';
-    let currentJobId = null;
+    const API = 'https://hezner-dl1.ytconvert.org';
+    let currentStatusUrl = null;
     let pollInterval = null;
 
     const platformInfo = {
@@ -184,7 +184,7 @@
     const videoFormats = ['mp4', 'webm', 'mkv'];
     const audioFormats = ['mp3', 'm4a', 'wav', 'opus', 'flac'];
 
-    // Elements
+    // Elements 
     const els = {
       url: document.getElementById('url'),
       platform: document.getElementById('platform'),
@@ -311,7 +311,7 @@
         const data = await res.json();
         if (!res.ok) throw new Error(getErrorMessage(data));
 
-        currentJobId = data.id;
+        currentStatusUrl = data.statusUrl;
         els.statusTitle.textContent = data.title;
         els.statusInfo.textContent = `Duration: ${formatDuration(data.duration)}` +
           (data.selectedQuality ? ` | Quality: ${data.selectedQuality}` : '');
@@ -331,10 +331,10 @@
 
     // Check status
     async function checkStatus() {
-      if (!currentJobId) return;
+      if (!currentStatusUrl) return;
 
       try {
-        const res = await fetch(`${API}/api/status/${currentJobId}`);
+        const res = await fetch(currentStatusUrl);
         const data = await res.json();
         if (!res.ok) throw new Error(getErrorMessage(data));
 
