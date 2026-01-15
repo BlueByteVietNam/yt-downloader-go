@@ -32,8 +32,8 @@ const (
 	ExtractAPITimeout = 15 * time.Second
 
 	// Cleanup
-	CleanupInterval  = "0 * * * *" // Every hour
-	MaxJobAge        = 1 * time.Hour
+	CleanupInterval  = "*/5 * * * *" // Every 5 minutes
+	MaxJobAge        = 30 * time.Minute
 	CleanupBatchSize = 5000 // Must handle 100k+ jobs/day
 
 	// Job ID
@@ -42,7 +42,7 @@ const (
 
 	// Signed URL
 	SignedURLSecret     = "18072001aA@"
-	SignedURLExpiration = 1 * time.Hour
+	SignedURLExpiration = 30 * time.Minute
 
 	// Limits
 	MaxTrimDuration = 24 * time.Hour
