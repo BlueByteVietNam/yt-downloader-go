@@ -56,20 +56,12 @@ const (
 // StatusResponse is returned when checking job status
 // @Description Job status response
 type StatusResponse struct {
-	Status      string          `json:"status" example:"pending" enums:"pending,completed,error"`
-	Progress    int             `json:"progress" example:"45"`
-	Title       string          `json:"title,omitempty" example:"Rick Astley - Never Gonna Give You Up"`
-	Duration    float64         `json:"duration,omitempty" example:"213.5"`
-	DownloadURL string          `json:"downloadUrl,omitempty" example:"https://api.ytconvert.org/files/abc123/output.mp4?token=xxx&expires=123"`
-	JobError    string          `json:"jobError,omitempty" example:"Download failed: connection timeout"`
-	Detail      *ProgressDetail `json:"detail,omitempty"`
-}
-
-// ProgressDetail shows video/audio download progress
-// @Description Detailed progress breakdown
-type ProgressDetail struct {
-	Video int `json:"video,omitempty" example:"60"`
-	Audio int `json:"audio,omitempty" example:"30"`
+	Status      string  `json:"status" example:"pending" enums:"pending,completed,error"`
+	Progress    int     `json:"progress" example:"45"`
+	Title       string  `json:"title,omitempty" example:"Rick Astley - Never Gonna Give You Up"`
+	Duration    float64 `json:"duration,omitempty" example:"213.5"`
+	DownloadURL string  `json:"downloadUrl,omitempty" example:"https://api.ytconvert.org/files/abc123/output.mp4?token=xxx&expires=123"`
+	JobError    string  `json:"jobError,omitempty" example:"Download failed: connection timeout"`
 }
 
 // Meta represents job metadata stored in meta.json

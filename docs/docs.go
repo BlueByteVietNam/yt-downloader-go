@@ -493,27 +493,10 @@ const docTemplate = `{
                 }
             }
         },
-        "models.ProgressDetail": {
-            "description": "Detailed progress breakdown",
-            "type": "object",
-            "properties": {
-                "audio": {
-                    "type": "integer",
-                    "example": 30
-                },
-                "video": {
-                    "type": "integer",
-                    "example": 60
-                }
-            }
-        },
         "models.StatusResponse": {
             "description": "Job status response",
             "type": "object",
             "properties": {
-                "detail": {
-                    "$ref": "#/definitions/models.ProgressDetail"
-                },
                 "downloadUrl": {
                     "type": "string",
                     "example": "https://api.ytconvert.org/files/abc123/output.mp4?token=xxx\u0026expires=123"

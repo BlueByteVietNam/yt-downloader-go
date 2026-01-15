@@ -146,16 +146,15 @@ func getDownloadedSize(jobDir, fileName string, expectedSize int64) int64 {
 }
 
 // CalculateProgress calculates download progress from file sizes
-func CalculateProgress(meta *models.Meta) (int, *models.ProgressDetail) {
+func CalculateProgress(meta *models.Meta) int {
 	if meta.Status == models.StatusCompleted {
-		return 100, nil
+		return 100
 	}
 	if meta.Status == models.StatusError {
-		return 0, nil
+		return 0
 	}
 
 	jobDir := GetJobDir(meta.ID)
-	detail := &models.ProgressDetail{}
 
 	if meta.OutputType == "video" && meta.Files.Video != nil && meta.Files.Audio != nil {
 		// Video + Audio download
@@ -171,12 +170,12 @@ func CalculateProgress(meta *models.Meta) (int, *models.ProgressDetail) {
 			audioProgress = int(float64(audioSize) / float64(meta.Files.Audio.Size) * 100)
 		}
 
-		detail.Video = min(videoProgress, 100)
-		detail.Audio = min(audioProgress, 100)
+		videoProgress = min(videoProgress, 100)
+		audioProgress = min(audioProgress, 100)
 
 		// Weighted progress: video 70%, audio 30%
-		progress := int(float64(detail.Video)*0.7 + float64(detail.Audio)*0.3)
-		return min(progress, 100), detail
+		progress := int(float64(videoProgress)*0.7 + float64(audioProgress)*0.3)
+		return min(progress, 100)
 	} else if meta.Files.Audio != nil {
 		// Audio only
 		audioSize := getDownloadedSize(jobDir, meta.Files.Audio.Name, meta.Files.Audio.Size)
@@ -186,9 +185,8 @@ func CalculateProgress(meta *models.Meta) (int, *models.ProgressDetail) {
 			audioProgress = int(float64(audioSize) / float64(meta.Files.Audio.Size) * 100)
 		}
 
-		detail.Audio = min(audioProgress, 100)
-		return min(audioProgress, 100), detail
+		return min(audioProgress, 100)
 	}
 
-	return 0, nil
+	return 0
 }

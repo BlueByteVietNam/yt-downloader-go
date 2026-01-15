@@ -114,21 +114,9 @@ definitions:
         example: video
         type: string
     type: object
-  models.ProgressDetail:
-    description: Detailed progress breakdown
-    properties:
-      audio:
-        example: 30
-        type: integer
-      video:
-        example: 60
-        type: integer
-    type: object
   models.StatusResponse:
     description: Job status response
     properties:
-      detail:
-        $ref: '#/definitions/models.ProgressDetail'
       downloadUrl:
         example: https://api.ytconvert.org/files/abc123/output.mp4?token=xxx&expires=123
         type: string

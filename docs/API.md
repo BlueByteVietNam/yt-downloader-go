@@ -163,11 +163,7 @@ Check job status.
   "status": "pending",
   "progress": 45,
   "title": "Video Title",
-  "duration": 213.5,
-  "detail": {
-    "video": 60,
-    "audio": 30
-  }
+  "duration": 213.5
 }
 ```
 
@@ -201,9 +197,6 @@ Check job status.
 | `progress` | number | 0-100 |
 | `title` | string | Video title |
 | `duration` | number | Duration in seconds |
-| `detail` | object | Progress breakdown (only when pending) |
-| `detail.video` | number | Video progress % |
-| `detail.audio` | number | Audio progress % |
 | `downloadUrl` | string | Download link (only when completed) |
 | `jobError` | string | Error message (only when error) |
 

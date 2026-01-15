@@ -60,7 +60,7 @@ func HandleStatus(c *fiber.Ctx) error {
 	}
 
 	// Calculate progress
-	progress, detail := utils.CalculateProgress(meta)
+	progress := utils.CalculateProgress(meta)
 
 	response := models.StatusResponse{
 		Status:   meta.Status,
@@ -84,11 +84,6 @@ func HandleStatus(c *fiber.Ctx) error {
 	// Set jobError when error
 	if meta.Status == models.StatusError {
 		response.JobError = meta.Error
-	}
-
-	// Set detail only when pending
-	if meta.Status == models.StatusPending && detail != nil {
-		response.Detail = detail
 	}
 
 	return c.JSON(response)
