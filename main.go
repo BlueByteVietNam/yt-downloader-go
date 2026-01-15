@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"os"
 	"os/signal"
@@ -35,9 +34,8 @@ import (
 // @schemes https http
 
 func main() {
-	// Create storage directory
 	if err := os.MkdirAll(config.StorageDir, 0755); err != nil {
-		log.Fatalf("Failed to create storage directory: %v", err)
+		panic(fmt.Sprintf("Failed to create storage directory: %v", err))
 	}
 
 	// Start cleanup scheduler
@@ -86,30 +84,20 @@ func main() {
 	// Health check
 	app.Get("/health", handlers.HandleHealth)
 
-	// Graceful shutdown
 	go func() {
 		sigChan := make(chan os.Signal, 1)
 		signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 		<-sigChan
-
-		log.Println("Shutting down server...")
-		if err := app.Shutdown(); err != nil {
-			log.Printf("Error shutting down: %v\n", err)
-		}
+		app.Shutdown()
 	}()
 
-	// Start server (bind to IPv6 - also accepts IPv4 on dual-stack)
 	addr := fmt.Sprintf(":%d", config.Port)
-	log.Printf("Starting server on http://localhost:%d\n", config.Port)
-	log.Printf("Swagger docs: http://localhost:%d/swagger/index.html\n", config.Port)
-
-	// Create IPv6 listener (dual-stack: accepts both IPv4 and IPv6)
 	ln, err := net.Listen("tcp6", addr)
 	if err != nil {
-		log.Fatalf("Failed to create listener: %v", err)
+		panic(fmt.Sprintf("Failed to create listener: %v", err))
 	}
 
 	if err := app.Listener(ln); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
+		panic(fmt.Sprintf("Failed to start server: %v", err))
 	}
 }

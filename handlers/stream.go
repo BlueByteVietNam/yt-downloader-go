@@ -3,8 +3,6 @@ package handlers
 import (
 	"bufio"
 	"fmt"
-	"io"
-	"log"
 	"net/url"
 	"os"
 	"os/exec"
@@ -131,9 +129,7 @@ func streamVideo(c *fiber.Ctx, meta *models.Meta) error {
 
 	args = append(args, "pipe:1")
 
-	log.Printf("[Stream %s] Starting video remux: %s + %s -> %s\n", meta.ID, meta.Files.Video.Name, meta.Files.Audio.Name, format)
-
-	return runFFmpegStream(c, args, meta.ID)
+	return runFFmpegStream(c, args)
 }
 
 // streamAudio streams audio, with transcoding if needed
@@ -169,8 +165,6 @@ func streamAudio(c *fiber.Ctx, meta *models.Meta) error {
 	var args []string
 
 	if canCopyAudioStream(inputExt, format) {
-		// No transcoding needed - just remux (very light CPU)
-		log.Printf("[Stream %s] Audio remux: %s -> %s (copy)\n", meta.ID, inputExt, format)
 		args = []string{
 			"-y",
 			"-i", audioPath,
@@ -179,7 +173,6 @@ func streamAudio(c *fiber.Ctx, meta *models.Meta) error {
 			"pipe:1",
 		}
 	} else {
-		// Transcoding needed (heavier CPU)
 		codec := config.AudioCodecMap[format]
 		if codec == "" {
 			codec = "aac"
@@ -189,8 +182,6 @@ func streamAudio(c *fiber.Ctx, meta *models.Meta) error {
 		if bitrate == "" {
 			bitrate = "192k"
 		}
-
-		log.Printf("[Stream %s] Audio transcode: %s -> %s (codec: %s, bitrate: %s)\n", meta.ID, inputExt, format, codec, bitrate)
 
 		args = []string{
 			"-y",
@@ -207,73 +198,57 @@ func streamAudio(c *fiber.Ctx, meta *models.Meta) error {
 		args = append(args, "-f", getFFmpegFormat(format), "pipe:1")
 	}
 
-	return runFFmpegStream(c, args, meta.ID)
+	return runFFmpegStream(c, args)
 }
 
-// runFFmpegStream executes FFmpeg and pipes output to HTTP response
-func runFFmpegStream(c *fiber.Ctx, args []string, jobID string) error {
+func runFFmpegStream(c *fiber.Ctx, args []string) error {
 	cmd := exec.Command("ffmpeg", args...)
-	cmd.Stderr = os.Stderr // Log FFmpeg errors
+	cmd.Stderr = os.Stderr
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		log.Printf("[Stream %s] Failed to create stdout pipe: %v\n", jobID, err)
 		return utils.InternalError(c, "Failed to start stream")
 	}
 
 	if err := cmd.Start(); err != nil {
-		log.Printf("[Stream %s] Failed to start FFmpeg: %v\n", jobID, err)
 		return utils.InternalError(c, "Failed to start stream")
 	}
 
-	// Stream FFmpeg output to client with rate limiting
 	c.Context().SetBodyStreamWriter(func(w *bufio.Writer) {
 		defer func() {
 			stdout.Close()
 			cmd.Wait()
-			log.Printf("[Stream %s] Stream completed\n", jobID)
 		}()
 
-		buf := make([]byte, 64*1024) // 64KB buffer
+		buf := make([]byte, 64*1024)
 		rateLimit := config.StreamRateLimit
 
-		// Rate limiting variables
 		var startTime time.Time
 		var totalBytes int64
 
 		if rateLimit > 0 {
 			startTime = time.Now()
-			log.Printf("[Stream %s] Rate limit: %d bytes/s\n", jobID, rateLimit)
 		}
 
 		for {
 			n, err := stdout.Read(buf)
 			if n > 0 {
 				if _, writeErr := w.Write(buf[:n]); writeErr != nil {
-					log.Printf("[Stream %s] Write error (client disconnected?): %v\n", jobID, writeErr)
 					cmd.Process.Kill()
 					return
 				}
 				w.Flush()
 
-				// Apply rate limiting
 				if rateLimit > 0 {
 					totalBytes += int64(n)
-
-					// Calculate expected duration based on bytes sent
 					expectedDuration := time.Duration(totalBytes) * time.Second / time.Duration(rateLimit)
 					actualDuration := time.Since(startTime)
-
-					// Sleep if we're sending faster than the rate limit
 					if expectedDuration > actualDuration {
 						time.Sleep(expectedDuration - actualDuration)
 					}
 				}
 			}
 			if err != nil {
-				if err != io.EOF {
-					log.Printf("[Stream %s] Read error: %v\n", jobID, err)
-				}
 				return
 			}
 		}

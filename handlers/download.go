@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"log"
 	"path/filepath"
 	"time"
 	"yt-downloader-go/config"
@@ -54,10 +53,8 @@ func HandleDownload(c *fiber.Ctx) error {
 		return utils.BadRequest(c, utils.ErrInvalidURL, err.Error())
 	}
 
-	// Fetch video metadata
 	extractData, err := services.Extract(videoID)
 	if err != nil {
-		log.Printf("[Download] Extract API error: %v\n", err)
 		return utils.InternalError(c, "Failed to fetch video metadata")
 	}
 
@@ -172,14 +169,10 @@ func processJob(jobID string, meta *models.Meta, videoSelection *models.VideoSel
 
 	defer func() {
 		if r := recover(); r != nil {
-			log.Printf("[Job %s] Panic: %v\n", jobID, r)
 			utils.UpdateMetaError(jobID, "Internal error")
 		}
 	}()
 
-	log.Printf("[Job %s] Starting download...\n", jobID)
-
-	// Download files
 	if meta.OutputType == "video" {
 		// Download video and audio in parallel
 		errChan := make(chan error, 2)
@@ -194,85 +187,61 @@ func processJob(jobID string, meta *models.Meta, videoSelection *models.VideoSel
 			errChan <- services.Download(ctx, audioStream.URL, audioPath, audioStream.ContentLength)
 		}()
 
-		// Wait for both downloads
 		for i := 0; i < 2; i++ {
 			if err := <-errChan; err != nil {
-				log.Printf("[Job %s] Download error: %v\n", jobID, err)
 				utils.UpdateMetaError(jobID, "Download failed: "+err.Error())
 				return
 			}
 		}
 	} else {
-		// Download audio only
 		audioPath := jobDir + "/" + meta.Files.Audio.Name
 		if err := services.Download(ctx, audioStream.URL, audioPath, audioStream.ContentLength); err != nil {
-			log.Printf("[Job %s] Download error: %v\n", jobID, err)
 			utils.UpdateMetaError(jobID, "Download failed: "+err.Error())
 			return
 		}
 	}
 
-	log.Printf("[Job %s] Download complete\n", jobID)
-
-	// Check if we should merge or stream-only
 	if !shouldMerge(meta) {
-		log.Printf("[Job %s] Duration %.0fs exceeds limit, marking as stream-only (transcode=%v)\n",
-			jobID, meta.Duration, needsTranscode(meta))
 		utils.UpdateMetaStreamOnly(jobID)
 		return
 	}
-
-	log.Printf("[Job %s] Processing...\n", jobID)
 
 	// Process with FFmpeg
 	var outputFile string
 	var err error
 
 	if meta.OutputType == "video" {
-		// Merge video and audio
 		outputFile, err = services.FFmpegMerge(jobDir, format, meta.Files.Video.Name, meta.Files.Audio.Name)
 		if err != nil {
-			log.Printf("[Job %s] FFmpeg merge error: %v\n", jobID, err)
 			utils.UpdateMetaError(jobID, "Processing failed: "+err.Error())
 			return
 		}
 
-		// Trim if requested
 		if meta.Trim != nil {
 			outputFile, err = services.FFmpegTrim(jobDir, format, meta.Trim, bitrate)
 			if err != nil {
-				log.Printf("[Job %s] FFmpeg trim error: %v\n", jobID, err)
 				utils.UpdateMetaError(jobID, "Trim failed: "+err.Error())
 				return
 			}
 		}
 	} else {
-		// Convert audio
 		outputFile, err = services.FFmpegConvertAudio(jobDir, format, bitrate, meta.Files.Audio.Name)
 		if err != nil {
-			log.Printf("[Job %s] FFmpeg convert error: %v\n", jobID, err)
 			utils.UpdateMetaError(jobID, "Conversion failed: "+err.Error())
 			return
 		}
 
-		// Trim if requested
 		if meta.Trim != nil {
 			outputFile, err = services.FFmpegTrimAudio(jobDir, format, meta.Trim, bitrate)
 			if err != nil {
-				log.Printf("[Job %s] FFmpeg trim error: %v\n", jobID, err)
 				utils.UpdateMetaError(jobID, "Trim failed: "+err.Error())
 				return
 			}
 		}
 	}
 
-	// Cleanup temp files
 	utils.CleanupTempFiles(jobID)
-
-	// Update meta with output
 	utils.UpdateMetaOutput(jobID, outputFile)
-
-	log.Printf("[Job %s] Completed: %s\n", jobID, outputFile)
 }
 
 // shouldMerge determines if the job should be pre-merged or stream-only
