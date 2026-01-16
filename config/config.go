@@ -28,14 +28,13 @@ const (
 	BufferSize   = 64 * 1024 // 64KB - optimal for io.CopyBuffer
 
 	// Extract API
-	ExtractAPIBase    = "http://168.119.14.32:8300/api/youtube/video"
+	ExtractAPIBase    = "http://localhost:8300/api/youtube/video"
 	ExtractAPITimeout = 15 * time.Second
 
 	// Cleanup
 	CleanupInterval  = "*/5 * * * *" // Every 5 minutes
 	MaxJobAge        = 30 * time.Minute
-	CleanupBatchSize = 5000 // Must handle 100k+ jobs/day
-
+	CleanupBatchSize = 5000
 	// Job ID
 	JobIDLength = 21
 	JobIDRegex  = `^[a-zA-Z0-9_-]{21}$`
