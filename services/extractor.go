@@ -15,7 +15,7 @@ import (
 
 // Extract fetches video metadata from YouTube Extract API
 func Extract(videoID string) (*models.ExtractResponse, error) {
-	apiURL := fmt.Sprintf("%s/%s", config.ExtractAPIBase, videoID)
+	apiURL := fmt.Sprintf("%s/%s?proxy=%s", config.ExtractAPIBase, videoID, config.WARPProxyURL)
 
 	req, err := http.NewRequest("GET", apiURL, nil)
 	if err != nil {
