@@ -1,15 +1,13 @@
 package config
 
 import (
-	"context"
-	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"sync"
 	"time"
 
 	_ "github.com/joho/godotenv/autoload" // Auto-load .env file
-	"golang.org/x/net/proxy"
 )
 
 const (
@@ -28,7 +26,7 @@ const (
 	BufferSize   = 64 * 1024 // 64KB - optimal for io.CopyBuffer
 
 	// Extract API
-	ExtractAPIBase    = "http://localhost:8300/api/youtube/video"
+	ExtractAPIBase    = "http://127.0.0.1:8300/api/youtube/video"
 	ExtractAPITimeout = 15 * time.Second
 
 	// Cleanup
@@ -167,7 +165,7 @@ var MimeToExt = map[string]string{
 }
 
 // WARP Proxy config
-const WARPProxyAddr = "127.0.0.1:1111"
+const WARPProxyURL = "http://warp:1111@127.0.0.1:1111"
 
 // BufferPool for reusing buffers (reduces GC pressure)
 var BufferPool = sync.Pool{
@@ -183,29 +181,19 @@ var (
 	DownloadClient *http.Client
 )
 
-// Transport for Extract API
+// Transport for Extract API (no proxy - local API)
 var extractTransport = &http.Transport{
-	DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-		dialer, err := proxy.SOCKS5("tcp", WARPProxyAddr, nil, proxy.Direct)
-		if err != nil {
-			return nil, err
-		}
-		return dialer.Dial(network, addr)
-	},
 	MaxIdleConns:        100,
 	MaxIdleConnsPerHost: 10,
 	IdleConnTimeout:     90 * time.Second,
 }
 
+// HTTP proxy URL for downloads
+var proxyURL, _ = url.Parse(WARPProxyURL)
+
 // Transport for Download (gzip disabled for raw streaming)
 var downloadTransport = &http.Transport{
-	DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-		dialer, err := proxy.SOCKS5("tcp", WARPProxyAddr, nil, proxy.Direct)
-		if err != nil {
-			return nil, err
-		}
-		return dialer.Dial(network, addr)
-	},
+	Proxy:               http.ProxyURL(proxyURL),
 	MaxIdleConns:        100,
 	MaxIdleConnsPerHost: 10,
 	IdleConnTimeout:     90 * time.Second,
